@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^[0-9a-fA-F]{40}$')]
-    [string]$Commit
+    [string]$Commit,
+    [switch]$Quiet
 )
 $ErrorActionPreference = 'Stop'
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'Run this helper on Windows.' }
@@ -22,9 +23,18 @@ Expand-Archive -LiteralPath $archive -DestinationPath $buildRoot
 $sourceRoot = Join-Path $buildRoot ('tggm-' + $Commit.ToLowerInvariant())
 $builder = Join-Path $sourceRoot 'tgg-desktop\scripts\build-free.ps1'
 if (!(Test-Path -LiteralPath $builder -PathType Leaf)) { throw 'Expected build script was not found. No build was started.' }
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder
-if ($LASTEXITCODE -ne 0) { throw 'Build failed. See the error above. No installer was launched.' }
+if ($Quiet) {
+    $env:TGG_SMOKE_HIDDEN = '1'
+    $buildOutput = Join-Path $buildRoot 'build-output.log'
+    $buildErrors = Join-Path $buildRoot 'build-errors.log'
+    $arguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $builder + '"'
+    $process = Start-Process powershell.exe -WindowStyle Hidden -ArgumentList $arguments -RedirectStandardOutput $buildOutput -RedirectStandardError $buildErrors -Wait -PassThru
+    if ($process.ExitCode -ne 0) { throw "Build failed. Logs: $buildOutput and $buildErrors. No installer was launched." }
+} else {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder
+    if ($LASTEXITCODE -ne 0) { throw 'Build failed. See the error above. No installer was launched.' }
+}
 $dist = Join-Path $sourceRoot 'tgg-desktop\dist'
 Write-Host "Installer and checksum are in $dist"
 Write-Host 'Close TGG before running the installer. Keep your existing app data and backups.'
-Start-Process explorer.exe -ArgumentList ('"' + $dist + '"')
+if (!$Quiet) { Start-Process explorer.exe -ArgumentList ('"' + $dist + '"') }

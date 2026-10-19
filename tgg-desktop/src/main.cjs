@@ -28,6 +28,7 @@ const sourceService=new SourceService({app,utilityProcess});
 let browserWindow;
 let sourceWindow,projectReview=null,selectingProject=false,snapshotBusy=false;
 let win, record = {}, unlockedUntil = 0, attempts = 0, retryAt = 0, busy = false;
+const smokeHidden=process.argv.includes('--tgg-smoke-hidden');
 const page = pathToFileURL(path.join(__dirname, 'index.html')).href;
 const file = () => path.join(app.getPath('userData'), 'owner.json');
 function save(next) {
@@ -49,7 +50,7 @@ function handle(name, fn) {
 app.whenReady().then(() => {
   if (fs.existsSync(file())) record = JSON.parse(fs.readFileSync(file(), 'utf8'));
   session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb) => cb(false));
-  win = new BrowserWindow({width:1160,height:820,minWidth:760,minHeight:600,backgroundColor:'#0b1020',webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
+  win = new BrowserWindow({show:!smokeHidden,width:1160,height:820,minWidth:760,minHeight:600,backgroundColor:'#0b1020',webPreferences:{offscreen:smokeHidden,backgroundThrottling:!smokeHidden,preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
   win.webContents.setWindowOpenHandler(() => ({action:'deny'}));
   win.webContents.on('will-navigate', e => e.preventDefault());
   win.on('blur', () => {if(!selectingProject)unlockedUntil = 0;});
@@ -127,7 +128,7 @@ app.whenReady().then(() => {
   const services={projects:'http://127.0.0.1:10020',creative:'http://127.0.0.1:10040'};
   handle('service', async name => {
     if(name==='os')return launchOs(osPath(),{openPath:file=>shell.openPath(file)});
-    if(name==='browser'){if(!browserWindow||browserWindow.isDestroyed())browserWindow=require('./browser.cjs').createBrowser({BrowserWindow,WebContentsView,session,ipcMain});browserWindow.show();browserWindow.focus();return true;}
+    if(name==='browser'){if(!browserWindow||browserWindow.isDestroyed())browserWindow=require('./browser.cjs').createBrowser({BrowserWindow,WebContentsView,session,ipcMain});if(!smokeHidden){browserWindow.show();browserWindow.focus();}return true;}
     if(name==='studio'){if(!record.studio)throw Error('Unlock Owner settings and save the TGG Studio path first.');secureStorage();return launchStudio(safeStorage.decryptString(Buffer.from(record.studio,'base64')),{openPath:file=>shell.openPath(file)});}
     if(name==='source'){
       const url=await sourceService.start();
@@ -135,11 +136,11 @@ app.whenReady().then(() => {
       sourceSession.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
       await sourceSession.cookies.set({url,name:'tgg_source_session',value:sourceService.token,httpOnly:true,sameSite:'strict',path:'/'});
       if(!sourceWindow||sourceWindow.isDestroyed()){
-        sourceWindow=new BrowserWindow({width:1250,height:900,title:'TGG Source',webPreferences:{partition:'tgg-source',nodeIntegration:false,contextIsolation:true,sandbox:true}});
+        sourceWindow=new BrowserWindow({show:!smokeHidden,width:1250,height:900,title:'TGG Source',webPreferences:{offscreen:smokeHidden,backgroundThrottling:!smokeHidden,partition:'tgg-source',nodeIntegration:false,contextIsolation:true,sandbox:true}});
         sourceWindow.webContents.setWindowOpenHandler(()=>({action:'deny'}));
         sourceWindow.webContents.on('will-navigate',(event,target)=>{if(new URL(target).origin!==new URL(sourceService.url||url).origin)event.preventDefault();});
       }
-      await sourceWindow.loadURL(url);sourceWindow.show();sourceWindow.focus();
+      await sourceWindow.loadURL(url);if(!smokeHidden){sourceWindow.show();sourceWindow.focus();}
       return true;
     }
     if(!services[name])throw Error('Unknown service');

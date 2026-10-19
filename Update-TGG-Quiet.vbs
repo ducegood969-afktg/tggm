@@ -1,0 +1,6 @@
+Option Explicit
+' User-started quiet updater. No startup entry, scheduled task, or automatic installation.
+Dim shell, command
+Set shell = CreateObject("WScript.Shell")
+command = "powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -Command " & Chr(34) & "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; $tggLog=Join-Path $env:USERPROFILE 'Downloads\TGG-Update.log'; & { try { Write-Output ('TGG update started: '+(Get-Date)); $tggRepo='ducegood969-afktg/tggm'; $tggCommit=[string](Invoke-RestMethod -Uri ('https://api.github.com/repos/'+$tggRepo+'/commits/codex/tgg-ai-ultra-windows-release') -Headers @{'User-Agent'='TGG-Update'}).sha; if($tggCommit -notmatch '^[0-9a-f]{40}$'){throw 'Invalid repository commit.'}; $tggFolder=Join-Path $env:USERPROFILE ('Downloads\TGG-updater-'+[guid]::NewGuid().ToString('N')); New-Item -ItemType Directory -Path $tggFolder | Out-Null; $tggHelper=Join-Path $tggFolder 'Update-TGG.ps1'; Invoke-WebRequest -UseBasicParsing -Uri ('https://raw.githubusercontent.com/'+$tggRepo+'/'+$tggCommit+'/Update-TGG.ps1') -OutFile $tggHelper; & $tggHelper -Commit $tggCommit -Quiet; Write-Output 'READY: build complete. Installer folder is listed above. Close TGG before installing.' } catch { Write-Output ('FAILED: '+$_.Exception.Message) } } *> $tggLog" & Chr(34)
+shell.Run command, 0, False

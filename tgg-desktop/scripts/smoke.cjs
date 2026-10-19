@@ -9,7 +9,7 @@ const os = require('node:os');
   try {
     const linux = process.platform === 'linux';
     application = await electron.launch({executablePath:process.env.TGG_TEST_EXE || require('electron'),
-      args:[...(linux ? ['--disable-setuid-sandbox','--password-store=gnome-libsecret'] : []), `--user-data-dir=${profile}`,
+      args:[...(linux ? ['--disable-setuid-sandbox','--password-store=gnome-libsecret'] : []), `--user-data-dir=${profile}`, ...(process.env.TGG_SMOKE_HIDDEN==='1'?['--tgg-smoke-hidden']:[]),
         ...(!process.env.TGG_TEST_EXE ? [path.resolve(__dirname,'..')] : [])],
       chromiumSandbox:true, timeout:45000});
     const page = await application.firstWindow();
@@ -164,6 +164,7 @@ const os = require('node:os');
     assert.deepEqual(browserIsolation,{node:'undefined',tools:'undefined',title:'Browser fixture'});
     await browser.fill('#address','file:///etc/passwd');await browser.click('button[type=submit]');await browser.waitForFunction(()=>document.querySelector('#state').textContent.includes('HTTPS'));
     await browser.screenshot({path:path.resolve(__dirname,'../test-results/browser.png')});await browser.close();
+    if(process.env.TGG_SMOKE_HIDDEN==='1')assert.equal(await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().every(window=>!window.isVisible())),true);
     assert.deepEqual(errors,[]);
     console.log(JSON.stringify({ok:true,checks:['real GUI','sandbox enabled','owner setup','OS encryption round trip','mocked chat rendered as text','owner lock','managed Source startup and repository creation','project review and real Source snapshot','support export','local diagnostics','app screenshot','Studio workspace edit/save','external-edit rejection','Studio companion with opt-in context','local model picker','review/reject/apply local edit proposal','separate explicit save of AI proposal'],backend:secure.backend}));
   } finally {

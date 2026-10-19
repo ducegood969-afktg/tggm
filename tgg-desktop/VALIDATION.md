@@ -1,5 +1,20 @@
 # Validation and remaining external requirements
 
+## 0.1.15 combined desktop update (2026-10-19)
+
+Current checks supersede historical counts below. All 37 desktop tests pass (zero skipped), including schema-bounded local agent proposals, rejection of unsupported tools/paths/stale edits, check review expiry and manifest revisions, cancellation/timeouts, encrypted edit undo with CRLF/BOM preservation, owner-data fallback and blocked corrupt resets, real Git bundle clone/fsck, fixed-folder installer hash verification and Unreal generated-directory exclusions. Source syntax checks pass.
+
+The real sandboxed Electron GUI smoke passes: existing owner/chat/Studio/Source workflow, multi-file agent proposal review and explicit apply, approved npm test, Stop during a check and model generation, edit undo, encrypted owner export/restore, real Git bundle restoration into a new repository, and restart recovery from a deliberately corrupted current owner file. Linux encryption backend: gnome_libsecret. AI tool responses are mocked; actual local-model agent quality is not established.
+
+Unsigned Windows NSIS engineering packaging completed successfully for 0.1.15. The packaged app.asar version and presence of the agent, owner store, check runner, edit journal and prepared-installer modules were verified. Linux GUI and packaging checks do not prove Windows installation, DPAPI, process-tree termination or the enhanced quiet PowerShell helper on The Studio. The owner previously demonstrated quiet builds and installed 0.1.14; 0.1.15 still needs target-machine acceptance.
+
+Remaining scope: the legacy Everything OS and Service Hub sources are absent, so their internal polling processes were not patched. Their startup entries were disabled by the owner to stop flashing consoles. Source Git subprocesses in this checkout now use windowsHide. Optional Projects/creative service health is checked and failures are explained; services are not provisioned automatically. Browser websites and this cloud chat have no native control connection.
+
+The complete TGGWorld Unreal project is only on The Studio according to the owner. This checkout has some Unreal C++ fragments but no .uproject. No real-estate or character-customization integration, UBA timing, cooked assets or Shipping game executable is claimed. Unreal build/package work requires the complete project and a supported Unreal Windows toolchain.
+
+See [Local agent](LOCAL-AGENT.md) and [Recovery](RECOVERY.md) for exact limits and recovery coverage. No promise of error-free software or automatic installation rollback is made.
+
+
 Executed successfully in this cloud instance:
 
 - Reproducible locked dependency installation with Node 24 and workspace caches; patched Electron download dependency. Full and production npm audits report zero known vulnerabilities.

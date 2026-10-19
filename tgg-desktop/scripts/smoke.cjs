@@ -8,11 +8,12 @@ const os = require('node:os');
   let application;
   try {
     const linux = process.platform === 'linux';
-    application = await electron.launch({executablePath:process.env.TGG_TEST_EXE || require('electron'),
+    const launchOptions={executablePath:process.env.TGG_TEST_EXE || require('electron'),
       args:[...(linux ? ['--disable-setuid-sandbox','--password-store=gnome-libsecret'] : []), `--user-data-dir=${profile}`, ...(process.env.TGG_SMOKE_HIDDEN==='1'?['--tgg-smoke-hidden']:[]),
         ...(!process.env.TGG_TEST_EXE ? [path.resolve(__dirname,'..')] : [])],
-      chromiumSandbox:true, timeout:45000});
-    const page = await application.firstWindow();
+      chromiumSandbox:true, timeout:45000};
+    application=await electron.launch(launchOptions);
+    const page = await application.firstWindow();page.setDefaultTimeout(30000);page.on('dialog',dialog=>dialog.accept().catch(()=>{}));
     const errors=[]; page.on('pageerror',error=>errors.push(error.message));
     await page.waitForSelector('#notice');
     await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('create your local owner'));
@@ -131,16 +132,49 @@ const os = require('node:os');
     assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Changed by another editor');
     await page.locator('.file-item').first().click();await page.click('#discard-confirm');
     await page.waitForFunction(()=>document.querySelector('#workspace-editor').value==='Changed by another editor');
+    console.log('Smoke: existing editor workflow passed; starting combined agent/recovery checks.');
+    // Combined local agent, approved real npm check, edit recovery, and owner backup.
+    fs.writeFileSync(path.join(projectFolder,'package.json'),JSON.stringify({scripts:{test:'node check.js',build:'node -e "setInterval(()=>{},1000)"'}}));
+    fs.writeFileSync(path.join(projectFolder,'check.js'),"// Fixture check\nconsole.log('TGG_CHECK_PASSED');\n");
+    await application.evaluate(({dialog},folder)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[folder]});},projectFolder);
+    await page.click('#workspace-tab');await page.click('#workspace-open');await page.waitForSelector('.file-item');
+    await application.evaluate(()=>{global.__beforeAgentFetch=global.fetch;global.__agentQueue=[{tool:'list_files'},{tool:'read_file',path:'notes.md'},{tool:'propose_edit',path:'notes.md',edits:[{find:'Changed by another editor',replace:'Reviewed by TGG Agent'}]},{tool:'read_file',path:'check.js'},{tool:'propose_edit',path:'check.js',edits:[{find:'// Fixture check',replace:'// Reviewed fixture check'}]},{tool:'request_check',check:'test'},{tool:'finish',message:'Two changes queued. Tests have not run.'}];global.fetch=async(url,options)=>{if(JSON.parse(options?.body||'{}').format?.properties?.tool)return {ok:true,json:async()=>({message:{content:JSON.stringify(global.__agentQueue.shift())}})};return global.__beforeAgentFetch(url,options);};});
+    await page.click('#agent-tab');await page.fill('#agent-task','Review and improve the project notes and check comment.');await page.click('#agent-start');
+    await page.waitForFunction(()=>document.querySelector('#agent-summary').textContent.includes('Two changes queued'));
+    assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Changed by another editor');
+    assert.equal(await page.locator('#agent-proposals .primary-button').count(),2);
+    while(await page.locator('#agent-proposals .primary-button').count()){const remaining=await page.locator('#agent-proposals .primary-button').count();await page.locator('#agent-proposals .primary-button').first().click();await page.waitForFunction(count=>document.querySelectorAll('#agent-proposals .primary-button').length<count,remaining);}
+    assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Reviewed by TGG Agent');
+    console.log('Smoke: multi-file proposals applied.');
+    await page.click('#agent-test');await page.waitForSelector('#check-dialog[open]');assert.match(await page.locator('#check-plan').textContent(),/node check.js/);await page.click('#check-confirm');await page.waitForFunction(()=>document.querySelector('#notice').textContent==='Project check passed.');assert.match(await page.locator('#check-output').textContent(),/TGG_CHECK_PASSED/);
+    console.log('Smoke: approved npm test passed.');
+    await page.click('#agent-build');await page.click('#check-confirm');await page.waitForFunction(()=>document.querySelector('#check-output').textContent.includes('setInterval'));await page.click('#stop-work');await page.waitForFunction(()=>document.querySelector('#check-output').textContent.includes('Stopped'));
+    await application.evaluate(()=>{global.fetch=async(url,options)=>{if(JSON.parse(options?.body||'{}').format?.properties?.tool)return new Promise((_resolve,reject)=>options.signal.addEventListener('abort',()=>reject(Error('Aborted')),{once:true}));return global.__beforeAgentFetch(url,options);};});
+    await page.fill('#agent-task','Slow cancellation fixture');await page.click('#agent-start');await page.waitForFunction(()=>document.querySelector('#agent-start').disabled);await page.click('#stop-work');await page.waitForFunction(()=>!document.querySelector('#agent-start').disabled);assert.equal(await page.locator('#agent-proposals .primary-button').count(),0);
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/agent.png')});
+    console.log('Smoke: check and agent Stop passed.');
+    await page.click('#recovery-tab');await page.click('#edits-refresh');await page.waitForFunction(()=>document.querySelector('#recovery-edits').options.length>1);
+    const undoId=await page.locator('#recovery-edits').evaluate(select=>[...select.options].find(option=>option.textContent.includes('notes.md')).value);await page.selectOption('#recovery-edits',undoId);await page.click('#recovery-undo');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Before-copy restored'));assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Changed by another editor');
+    console.log('Smoke: journal undo passed.');
+    await page.click('#recovery-export');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Encrypted owner backup saved'));const ownerBackup=path.join(profile,'TGG-owner-backup.json');assert.equal(JSON.parse(fs.readFileSync(ownerBackup,'utf8')).format,'tgg-owner-backup-v1');
+    await application.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},ownerBackup);
+    await page.fill('#recovery-password','tgg smoke owner password');await page.click('#recovery-form button');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Owner backup restored'));
+    await page.click('#owner-tab');await page.fill('#password','tgg smoke owner password');await page.click('#unlock-form button[type=submit]');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('unlocked'));
+    console.log('Smoke: owner backup export/restore passed.');
+    const bundleRepo=path.join(profile,'bundle-fixture');fs.mkdirSync(bundleRepo);const bundledGit=process.platform==='win32'?path.join(process.env.TGG_TEST_EXE?path.dirname(process.env.TGG_TEST_EXE):path.resolve(__dirname,'..'),'resources','mingit','cmd','git.exe'):'git';const git=process.platform==='win32'&&!process.env.TGG_TEST_EXE?path.resolve(__dirname,'../vendor/mingit/cmd/git.exe'):bundledGit;const gitRun=args=>require('node:child_process').execFileSync(git,args,{cwd:bundleRepo,windowsHide:true,stdio:'pipe'});
+    gitRun(['init','--initial-branch=main']);gitRun(['config','user.name','TGG Smoke']);gitRun(['config','user.email','smoke@tgg.local']);fs.writeFileSync(path.join(bundleRepo,'README.md'),'Bundle restore fixture');gitRun(['add','README.md']);gitRun(['commit','-m','Recovery fixture']);const bundleFile=path.join(profile,'fixture.bundle');gitRun(['bundle','create',bundleFile,'--all']);
+    await application.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},bundleFile);await page.click('#recovery-tab');await page.click('#bundle-review');await page.waitForFunction(()=>!document.querySelector('#bundle-restore').disabled);assert.match(await page.locator('#bundle-result').textContent(),/refs\/heads\/main/);await page.click('#bundle-restore');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Bundle restored as new Source repository'));
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/recovery.png')});
     await page.click('#remote-tab');
     await page.click('#remote-diagnostics');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Local connection checks complete'));
     const diagnostic=JSON.parse(await page.locator('#remote-diagnostics-result').textContent());assert.equal(diagnostic.source.connected,true);assert.equal(diagnostic.ollama.connected,true);
     await page.click('#remote-screenshot');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('App screenshot saved locally'));
     assert.ok(fs.statSync(path.join(profile,'TGG-Remote-app.png')).size>0);
     await page.click('#owner-tab');await page.click('#lock');
-    await page.fill('#api-key','tgg-fake-other-key');await page.click('#settings-form button[type=submit]');
+    await page.selectOption('#provider','openai');await page.fill('#api-key','tgg-fake-other-key');await page.click('#settings-form button[type=submit]');
     await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Unlock owner settings first'));
     // A signed packaged app can contact its real feed; test the disabled update path only in development.
-    if(!process.env.TGG_TEST_EXE){await page.click('#update');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('signed release'));}
+    if(!process.env.TGG_TEST_EXE){await page.click('#update');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('quiet updater'));}
     fs.mkdirSync(path.resolve(__dirname,'../test-results'),{recursive:true});
     await page.click('#chat-tab');await page.click('#new-chat');
     assert.equal(await page.locator('#messages .user').count(),0);
@@ -166,8 +200,9 @@ const os = require('node:os');
     await browser.screenshot({path:path.resolve(__dirname,'../test-results/browser.png')});await browser.close();
     if(process.env.TGG_SMOKE_HIDDEN==='1')assert.equal(await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().every(window=>!window.isVisible())),true);
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({ok:true,checks:['real GUI','sandbox enabled','owner setup','OS encryption round trip','mocked chat rendered as text','owner lock','managed Source startup and repository creation','project review and real Source snapshot','support export','local diagnostics','app screenshot','Studio workspace edit/save','external-edit rejection','Studio companion with opt-in context','local model picker','review/reject/apply local edit proposal','separate explicit save of AI proposal'],backend:secure.backend}));
-  } finally {
+    await application.close();application=null;fs.writeFileSync(path.join(profile,'owner.json'),'{truncated');application=await electron.launch(launchOptions);const restarted=await application.firstWindow();await restarted.waitForFunction(()=>document.querySelector('#notice').textContent.includes('previous valid copy'));assert.equal((await restarted.evaluate(()=>window.tgg.status())).data.recoveryBlocked,false);
+    console.log(JSON.stringify({ok:true,checks:['real GUI','sandbox enabled','owner setup','OS encryption round trip','mocked chat rendered as text','owner lock','managed Source startup and repository creation','project review and real Source snapshot','support export','local diagnostics','app screenshot','Studio workspace edit/save','external-edit rejection','Studio companion with opt-in context','local model picker','review/reject/apply local edit proposal','separate explicit save of AI proposal','local agent multi-file reviewed edits','approved npm check','Stop cancels check and generation','edit recovery','encrypted owner export/restore','Git bundle verification and new repository restore','corrupt owner data restart recovery'],backend:secure.backend}));
+  } catch(error){console.error('GUI smoke failed:',error);if(application)await application.evaluate(({BrowserWindow})=>{for(const window of BrowserWindow.getAllWindows())window.destroy();}).catch(()=>{});throw error;} finally {
     if(application) await application.close();
     fs.rmSync(profile,{recursive:true,force:true,maxRetries:10,retryDelay:200});
   }

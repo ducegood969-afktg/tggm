@@ -1,13 +1,13 @@
 const fs=require('node:fs/promises');const path=require('node:path');const {TextDecoder}=require('node:util');
-const excluded=new Set(['.git','.svn','.hg','node_modules','vendor','dist','dist-preview','build','.next','.cache','__pycache__','.venv','venv','.ssh','.aws','.azure']);
-const textExtensions=new Set(['.txt','.md','.js','.cjs','.mjs','.ts','.tsx','.jsx','.json','.html','.css','.scss','.py','.toml','.yaml','.yml','.xml','.csv','.sql','.sh','.ps1','.bat','.cmd','.rs','.go','.java','.cs','.cpp','.c','.h','.ini','.cfg']);
+const excluded=new Set(['.git','.svn','.hg','node_modules','vendor','dist','dist-preview','build','.next','.cache','__pycache__','.venv','venv','.ssh','.aws','.azure','binaries','intermediate','saved','deriveddatacache','.vs']);
+const textExtensions=new Set(['.txt','.md','.js','.cjs','.mjs','.ts','.tsx','.jsx','.json','.html','.css','.scss','.py','.toml','.yaml','.yml','.xml','.csv','.sql','.sh','.ps1','.bat','.cmd','.rs','.go','.java','.cs','.cpp','.c','.h','.ini','.cfg','.uproject','.uplugin']);
 async function reviewProject(folder){
  const root=await fs.realpath(folder);if(!(await fs.stat(root)).isDirectory())throw Error('Select a project folder.');
  const files=[],skipped=[];let total=0,seen=0;
  async function walk(dir){for(const item of await fs.readdir(dir,{withFileTypes:true})){
   if(++seen>5000)throw Error('Project exceeds the 5,000 entry scan limit. Select a smaller project.');
   const full=path.join(dir,item.name),relative=path.relative(root,full).split(path.sep).join('/');
-  if(excluded.has(item.name)||item.name.startsWith('.env')||/secret|credential|private.?key|token/i.test(item.name)||/\.(pem|key|pfx|p12|exe|dll|bundle|zip)$/i.test(item.name)){skipped.push(relative);continue;}
+  if(excluded.has(item.name.toLowerCase())||item.name.startsWith('.env')||/secret|credential|private.?key|token/i.test(item.name)||/\.(pem|key|pfx|p12|exe|dll|bundle|zip)$/i.test(item.name)){skipped.push(relative);continue;}
   const info=await fs.lstat(full);if(info.isSymbolicLink()){skipped.push(relative);continue;}
   if(info.isDirectory()){await walk(full);continue;}
   if(!info.isFile()||(!textExtensions.has(path.extname(item.name).toLowerCase())&&!['README','LICENSE','.gitignore','.editorconfig','Dockerfile'].includes(item.name))){skipped.push(relative);continue;}

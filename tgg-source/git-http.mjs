@@ -111,7 +111,7 @@ export async function handleGitHttp(req,res,url){
     REMOTE_USER:authenticated?'tgg':''
   };
 
-  const child=spawn('git',['http-backend'],{
+  const child=spawn('git',['http-backend'],{windowsHide:true,
     cwd:REPOS,
     env,
     stdio:['pipe','pipe','pipe']

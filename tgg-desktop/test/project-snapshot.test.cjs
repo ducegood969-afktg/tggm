@@ -14,3 +14,16 @@ test('TGG Remote bundle contains only reviewed text and minimal diagnostics',()=
  const result=supportBundle({root:'C:/private/user/project',files:[{path:'README.md',content:'hello'}],skipped:['.env'],password:'private',settings:'private'},{version:'0.1.4',platform:'win32',arch:'x64',apiKey:'private'});
  assert.equal(result.format,'tgg-remote-support-v1');assert.equal(result.files[0].content,'hello');assert.equal(result.root,undefined);assert.equal(result.apiKey,undefined);assert.equal(JSON.stringify(result).includes('private'),false);
 });
+
+
+test('Unreal source review includes project descriptors and skips generated directories regardless of case',async()=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'tgg-unreal-'));
+ try{
+  await fs.writeFile(path.join(root,'TGGWorld.uproject'),'{}\n');
+  await fs.writeFile(path.join(root,'Business.h'),'// source');
+  for(const name of ['Binaries','Intermediate','Saved','DerivedDataCache','.vs']){await fs.mkdir(path.join(root,name));await fs.writeFile(path.join(root,name,'generated.cpp'),'generated');}
+  const review=await reviewProject(root);
+  assert.deepEqual(review.files.map(file=>file.path).sort(),['Business.h','TGGWorld.uproject']);
+  assert.equal(review.skipped.length,5);
+ }finally{await fs.rm(root,{recursive:true,force:true});}
+});

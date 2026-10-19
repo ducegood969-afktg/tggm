@@ -18,3 +18,7 @@ The OS default path uses the current Windows profile and `AppData\Local\TGG Ever
 Remote connection checks now report whether the OS executable is available as well as Studio, Source and Ollama. Checking availability does not start the OS app or establish an internal API connection. OS and External Studio data, settings and models remain separate; no supported integration API or source code for those apps has been provided. No live mouse/keyboard, arbitrary command executor, remote session, or connection to this ChatGPT conversation is added.
 
 Validation: desktop unit/integration tests cover path constraints and diagnostics. Electron smoke covers Home actions, configuration form, recent files, browser separation, reviewed edits and Source snapshots. Launching the actual TGG OS executable must be checked on the owner's Windows computer; it is not installed in the Linux build environment.
+
+## 0.1.15 combined local tools
+
+AI Ultra now shares its own owner settings with its bounded local agent, reviewed edit journal, explicit npm checks and Recovery page. See [Local agent](LOCAL-AGENT.md) and [Recovery](RECOVERY.md). This does not synchronize the separately installed OS or Service Hub. Their source and the complete TGGWorld Unreal project are not present in this checkout. Browser websites remain isolated from native project tools.

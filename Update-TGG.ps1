@@ -35,6 +35,24 @@ if ($Quiet) {
     if ($LASTEXITCODE -ne 0) { throw 'Build failed. See the error above. No installer was launched.' }
 }
 $dist = Join-Path $sourceRoot 'tgg-desktop\dist'
+$package = Get-Content -LiteralPath (Join-Path $sourceRoot 'tgg-desktop\package.json') -Raw | ConvertFrom-Json
+$version = [string]$package.version
+if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid installer version.' }
+$installer = Join-Path $dist ("TGG-AI-Ultra-Setup-$version-x64.exe")
+$checksumFile = $installer + '.sha256'
+$hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = ([string](Get-Content -LiteralPath $checksumFile -Raw)).Substring(0,64).ToLowerInvariant()
+if ($hash -ne $expected) { throw 'Installer checksum mismatch. No ready installer was recorded.' }
+$readyFolder = Join-Path $env:USERPROFILE 'Downloads\TGG Updates'
+New-Item -ItemType Directory -Force -Path $readyFolder | Out-Null
+$readyInstaller = Join-Path $readyFolder ("TGG-AI-Ultra-Setup-$version-x64-" + $hash.Substring(0,8) + '.exe')
+Copy-Item -LiteralPath $installer -Destination $readyInstaller -Force
+if ((Get-FileHash -LiteralPath $readyInstaller -Algorithm SHA256).Hash.ToLowerInvariant() -ne $hash) { throw 'Prepared installer copy failed checksum verification.' }
+Set-Content -LiteralPath ($readyInstaller + '.sha256') -Encoding ascii -Value ($hash + '  ' + [IO.Path]::GetFileName($readyInstaller))
+$readyRecord = Join-Path $env:USERPROFILE 'Downloads\TGG-Update-Ready.json'
+@{version=$version;sha256=$hash;installer=$readyInstaller} | ConvertTo-Json | Set-Content -LiteralPath ($readyRecord + '.tmp') -Encoding utf8
+Move-Item -LiteralPath ($readyRecord + '.tmp') -Destination $readyRecord -Force
+Write-Host "Ready installer: $readyInstaller"
 Write-Host "Installer and checksum are in $dist"
 Write-Host 'Close TGG before running the installer. Keep your existing app data and backups.'
 if (!$Quiet) { Start-Process explorer.exe -ArgumentList ('"' + $dist + '"') }

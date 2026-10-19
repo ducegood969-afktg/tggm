@@ -22,7 +22,7 @@ export function safeRelative(value){
   return normalized;
 }
 async function git(cwd,args,opts={}){
-  const {stdout='',stderr=''}=await execFileAsync('git',args,{cwd,env:{...process.env,GIT_TERMINAL_PROMPT:'0'},maxBuffer:8*1024*1024,...opts});
+  const {stdout='',stderr=''}=await execFileAsync('git',args,{cwd,windowsHide:true,env:{...process.env,GIT_TERMINAL_PROMPT:'0'},maxBuffer:8*1024*1024,...opts});
   return {stdout:String(stdout).trim(),stderr:String(stderr).trim()};
 }
 function repoPath(name){return path.join(REPOS,safeName(name))}

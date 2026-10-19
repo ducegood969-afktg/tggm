@@ -23,8 +23,8 @@ jobs:
           cache: npm
           cache-dependency-path: tgg-desktop/package-lock.json
       - run: npm ci --no-audit --no-fund
-      - run: npm test
       - run: npm run prepare:git
+      - run: npm test
       - run: npm run smoke
       - name: Build unsigned Windows installer without a signing account
         run: npm run dist:unsigned

@@ -27,9 +27,9 @@ jobs:
           cache: npm
           cache-dependency-path: tgg-desktop/package-lock.json
       - run: npm ci
-      - run: npm test
       - name: Prepare verified bundled Git for Source and packaging
         run: npm run prepare:git
+      - run: npm test
       - run: node scripts/smoke.cjs
       - name: Azure login with short-lived GitHub identity
         if: inputs.signed

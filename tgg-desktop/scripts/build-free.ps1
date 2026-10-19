@@ -13,8 +13,8 @@ function Invoke-Npm([string[]]$CommandArgs) {
 Push-Location (Join-Path $PSScriptRoot '..')
 try {
   Invoke-Npm -CommandArgs @('ci', '--no-audit', '--no-fund')
-  Invoke-Npm -CommandArgs @('test')
   Invoke-Npm -CommandArgs @('run', 'prepare:git')
+  Invoke-Npm -CommandArgs @('test')
   Invoke-Npm -CommandArgs @('run', 'smoke')
   Invoke-Npm -CommandArgs @('run', 'dist:unsigned')
   $version = & node -p "require('./package.json').version"

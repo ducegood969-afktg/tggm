@@ -8,8 +8,8 @@ Use Node.js 24, then run from `tgg-desktop`:
 
 ```powershell
 npm ci
-npm test
 npm run prepare:git
+npm test
 npm run smoke
 npm run dist:unsigned
 ```

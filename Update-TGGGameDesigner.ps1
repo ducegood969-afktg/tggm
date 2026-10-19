@@ -8,16 +8,16 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'Run this helper on The Studio, in Windows.' }
-$sourceCommit = 'fd9af8efe86eb9f76b4b327c388331286dbce298'
+$sourceCommit = '52af8e597484000f6408fcdbebffd032aafc670b'
 $sourceBase = "https://raw.githubusercontent.com/ducegood969-afktg/tggm/$sourceCommit/game/unreal/Plugins/TGGGameDesigner"
 $manifest = @(
     @{ Path = 'Config/FilterPlugin.ini'; SHA256 = '266ea37f9ab51887ab2eada839386009e2ec8e43f750646959e922152e2e01f6' }
-    @{ Path = 'README.md'; SHA256 = 'ce05c0a7138e1440128f413938d6ce778dfefa1d66b310edecf32b7b68f8fca6' }
-    @{ Path = 'Source/TGGGameDesigner/Private/TGGDeliveryMission.cpp'; SHA256 = 'f1c6c22b6b9c60009fff0ec606eb062a08b31546ae37560340b436fe9ee41091' }
+    @{ Path = 'README.md'; SHA256 = '6e73731460bcadcfc419111111f0cd7ec4b088c317534da11840214d5b07d398' }
+    @{ Path = 'Source/TGGGameDesigner/Private/TGGDeliveryMission.cpp'; SHA256 = 'd877a2d85f2c3fc52851a4125c905e0aeee0d51df9374f129c702096e31ff77c' }
     @{ Path = 'Source/TGGGameDesigner/Private/TGGDesignerLibrary.cpp'; SHA256 = 'fbb8b206ab0484fec7f4372d6505bf700f42aeda63ca8853c3773825bed0105e' }
     @{ Path = 'Source/TGGGameDesigner/Private/TGGGameDesignerModule.cpp'; SHA256 = 'f4241b6b750fc2e9cd52263af6e96df1926a40a1aae9a677388f07d803094673' }
     @{ Path = 'Source/TGGGameDesigner/Private/TGGWorldHUD.cpp'; SHA256 = 'ad0594f8858df4af148c49b49fef15fc4a8ad4e3fe1a7f71ada3d060b67c7c21' }
-    @{ Path = 'Source/TGGGameDesigner/Public/TGGDeliveryMission.h'; SHA256 = '94540baf1ee520ba3ed5d42f641a5fe66720731a530de44b4ec75a3d778cd221' }
+    @{ Path = 'Source/TGGGameDesigner/Public/TGGDeliveryMission.h'; SHA256 = '2ebb2a1d8e7b2b622902650c5e4b708a72a20c5b7aef176046b540a50aa41360' }
     @{ Path = 'Source/TGGGameDesigner/Public/TGGDeliverySave.h'; SHA256 = '34fb5eafa2fd1a04ccf04ebf62ba9589847789ab94c5f52eef0b878dc1a004ec' }
     @{ Path = 'Source/TGGGameDesigner/Public/TGGDesignerLibrary.h'; SHA256 = 'd4b81e7bf58f078d25a947af6d5320861a08a78f8e7712e282330d5aaf388a27' }
     @{ Path = 'Source/TGGGameDesigner/Public/TGGEconomyRules.h'; SHA256 = '4db7ae319c116cec67f1925688ab8dc0e6fea0ef220fa2c76e919e57877ecd46' }
@@ -26,7 +26,7 @@ $manifest = @(
     @{ Path = 'Source/TGGGameDesigner/TGGGameDesigner.Build.cs'; SHA256 = '833ab87fa331a0d309be962b4f3864bf838af82bac24bdc473a930b593ed3178' }
     @{ Path = 'Source/TGGGameDesignerEditor/Private/TGGGameDesignerEditorModule.cpp'; SHA256 = '6794afe6552bff6b3c33767a9b6b5cfe1f946697e35c38a42b92792f95984c9c' }
     @{ Path = 'Source/TGGGameDesignerEditor/TGGGameDesignerEditor.Build.cs'; SHA256 = 'a5f473b5694ce7ca0006b511195dfa8bf69df5908bf2f4d1aa6383d19cf07613' }
-    @{ Path = 'TGGGameDesigner.uplugin'; SHA256 = 'add70978c3b7f1ee03215c26c4982cafb6f0c7bed1ed18cf487e10d49f19b74c' }
+    @{ Path = 'TGGGameDesigner.uplugin'; SHA256 = '68b044a70d988bb9e2a53d803a631efd7ebd8ef44f323f7f8c4edd59d35983be' }
 )
 function Assert-EditorClosed {
     if (Get-Process -Name UnrealEditor,UnrealEditor-Cmd,TGGWorld,TGGWorld-Win64-Shipping -ErrorAction SilentlyContinue) {

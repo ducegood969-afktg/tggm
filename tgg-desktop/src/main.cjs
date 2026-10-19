@@ -19,6 +19,9 @@ const {validateOsPath,launchOs}=require('./tgg-os.cjs');
 const defaultOsPath=()=>path.join(require('node:os').homedir(),'AppData','Local','TGG Everything OS','TGG_EVERYTHING_OS_v1.7.4.exe');
 function osPath(){secureStorage();return record.os?safeStorage.decryptString(Buffer.from(record.os,'base64')):defaultOsPath();}
 const {validateStudioPath,launchStudio}=require('./studio.cjs');
+const {validateTurns}=require('./conversation.cjs');
+function savedChats(){secureStorage();return record.chats?JSON.parse(safeStorage.decryptString(Buffer.from(record.chats,'base64'))):[];}
+function storeChats(chats){secureStorage();save({...record,chats:safeStorage.encryptString(JSON.stringify(chats)).toString('base64')});}
 const {complete} = require('./provider.cjs');
 const {SourceService} = require('./source-service.cjs');
 const sourceService=new SourceService({app,utilityProcess});
@@ -108,6 +111,11 @@ app.whenReady().then(() => {
       links[pending.snapshot.root]={repo:result.repo};save({...record,projects:safeStorage.encryptString(JSON.stringify(links)).toString('base64')});projectReview=null;return result;
     }finally{snapshotBusy=false;}
   });
+  handle('conversation',async turns=>{if(busy)throw Error('A request is already running.');const messages=validateTurns(turns);if(!messages.length||messages.length%2!==1)throw Error('Enter a message first.');const config=settings();busy=true;try{return await complete(config,messages.at(-1).content,{history:messages.slice(0,-1)});}finally{busy=false;}});
+  handle('chats-list',()=>{owner();return savedChats().map(({id,title})=>({id,title}));});
+  handle('chats-load',id=>{owner();const chat=savedChats().find(item=>item.id===id);if(!chat)throw Error('Saved chat was not found.');return chat;});
+  handle('chats-save',input=>{owner();const turns=validateTurns(input?.turns);if(!turns.length)throw Error('Send a message before saving.');const chats=savedChats();const previous=input.id&&chats.find(item=>item.id===input.id);const chat={id:previous?.id||require('node:crypto').randomUUID(),title:turns[0].content.slice(0,70),turns};storeChats([chat,...chats.filter(item=>item.id!==chat.id)].slice(0,10));return {id:chat.id};});
+  handle('chats-delete',id=>{owner();storeChats(savedChats().filter(item=>item.id!==id));return true;});
   handle('chat', async text => {
     if(typeof text!=='string'||!text.trim()||text.length>20000) throw Error('Enter a message of at most 20,000 characters.');
     if(busy) throw Error('A request is already running.');

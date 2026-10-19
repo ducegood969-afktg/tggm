@@ -3,12 +3,12 @@ const $ = id => document.getElementById(id);
 const notice = text => {$('notice').textContent=text;};
 async function call(name,arg){const r=await window.tgg[name](arg);if(!r.ok)throw Error(r.error);return r.data;}
 function run(fn){return async event=>{event?.preventDefault();try{await fn();}catch(e){notice(e.message);}};}
-function showView(view){if(view==='dashboard')refreshDashboard();for(const name of ['dashboard','chat','owner','remote','workspace']){$(name+'-panel').hidden=name!==view;const tab=$(name+'-tab');tab.classList.toggle('active',name===view);if(name===view)tab.setAttribute('aria-current','page');else tab.removeAttribute('aria-current');}$('view-title').textContent={dashboard:'Home',chat:'AI workspace',owner:'Owner settings',remote:'TGG Remote',workspace:'Studio workspace'}[view];}
+function showView(view){if(view==='dashboard')refreshDashboard();for(const name of ['dashboard','chat','owner','remote','workspace']){$(name+'-panel').hidden=name!==view;const tab=$(name+'-tab');tab.classList.toggle('active',name===view);if(name===view)tab.setAttribute('aria-current','page');else tab.removeAttribute('aria-current');}$('view-title').textContent={dashboard:'Home',chat:'TGG Chat',owner:'Owner settings',remote:'TGG Remote',workspace:'Studio workspace'}[view];}
 for(const view of ['dashboard','chat','owner','remote','workspace'])$(view+'-tab').onclick=()=>showView(view);
 $('remote-owner').onclick=()=>{showView('owner');$('password').focus();};
 function providerLabel(provider,model){$('provider-chip').textContent=(provider==='ollama'?'Local · ':'OpenAI · ')+model;$('composer-provider').textContent=provider==='ollama'?`${model} · On this computer`:`${model} · OpenAI API`;}
-const welcome=$('messages').firstElementChild.cloneNode(true);let chatBusy=false;
-$('new-chat').onclick=()=>{if(chatBusy)return;$('messages').replaceChildren(welcome.cloneNode(true));$('prompt').value='';$('prompt').focus();notice('New chat ready. Messages are not saved.');};
+const welcome=$('messages').firstElementChild.cloneNode(true);let chatBusy=false,chatTurns=[],savedChatId=null;
+$('new-chat').onclick=()=>{if(chatBusy)return;chatTurns=[];savedChatId=null;$('messages').replaceChildren(welcome.cloneNode(true));$('prompt').value='';$('prompt').focus();notice('New TGG chat ready. Use Save conversation to keep a local copy.');};
 $('messages').onclick=event=>{const button=event.target.closest('[data-prompt]');if(button){$('prompt').value=button.dataset.prompt;$('prompt').focus();}};
 
 $('unlock-form').onsubmit=run(async()=>{try{await call('unlock',{password:$('password').value});notice('Owner settings unlocked for five minutes.');await refreshDashboard();}finally{$('password').value='';}});
@@ -21,7 +21,7 @@ $('home-remote').onclick=()=>showView('remote');
 $('home-studio').onclick=()=>showView('workspace');
 $('studio-form').onsubmit=run(async()=>{await call('studio-configure',$('studio-path').value);notice('TGG Studio launch path saved. Use Open TGG Studio to launch it.');});
 function message(text,role){$('messages').querySelector('.welcome')?.remove();const el=document.createElement('article');el.className=role;el.textContent=text;$('messages').append(el);el.scrollIntoView({block:'end'});}
-$('chat-form').onsubmit=run(async()=>{const text=$('prompt').value;chatBusy=true;$('new-chat').disabled=true;message(text,'user');$('send').disabled=true;notice('Generating…');try{const answer=await call('chat',text);message(answer,'assistant');$('prompt').value='';notice('Response complete.');}finally{chatBusy=false;$('new-chat').disabled=false;$('send').disabled=false;}});
+$('chat-form').onsubmit=run(async()=>{const text=$('prompt').value;chatBusy=true;$('new-chat').disabled=true;message(text,'user');$('send').disabled=true;notice('Generating…');try{const pending=[...chatTurns,{role:'user',content:text}];const answer=await call('conversation',pending);chatTurns=[...pending,{role:'assistant',content:answer}];message(answer,'assistant');$('prompt').value='';notice('Response complete.');}finally{chatBusy=false;$('new-chat').disabled=false;$('send').disabled=false;}});
 $('update').onclick=run(async()=>{notice('Checking for signed updates…');await call('updates');});
 document.querySelectorAll('[data-service]').forEach(el=>el.onclick=run(async()=>{
   el.disabled=true;
@@ -78,3 +78,10 @@ async function refreshDashboard(){
 }
 $('dashboard-refresh').onclick=run(refreshDashboard);
 showView('dashboard');
+
+async function refreshChats(){const chats=await call('chats-list');$('saved-chats').replaceChildren(new Option('Choose a saved conversation…',''));for(const chat of chats)$('saved-chats').append(new Option(chat.title,chat.id));}
+$('chat-save').onclick=run(async()=>{if(chatBusy)throw Error('Wait for the response before saving.');const result=await call('chats-save',{id:savedChatId,turns:chatTurns});savedChatId=result.id;await refreshChats();$('saved-chats').value=result.id;notice('Conversation saved using OS encryption on this computer.');});
+$('chat-refresh').onclick=run(refreshChats);
+$('chat-load').onclick=run(async()=>{if(chatBusy)throw Error('Wait for the response.');const result=await call('chats-load',$('saved-chats').value);savedChatId=result.id;chatTurns=result.turns;$('messages').replaceChildren();for(const turn of chatTurns)message(turn.content,turn.role);$('prompt').value='';notice('Saved conversation opened. Follow-up messages include its recent conversation text.');});
+$('chat-delete').onclick=run(async()=>{const id=$('saved-chats').value;if(!id)throw Error('Choose a saved conversation.');await call('chats-delete',id);if(savedChatId===id)savedChatId=null;await refreshChats();notice('Saved conversation deleted. Any visible conversation remains until New chat.');});
+$('home-chat').onclick=()=>showView('chat');

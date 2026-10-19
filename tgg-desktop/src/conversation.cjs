@@ -1,0 +1,2 @@
+function validateTurns(turns){if(!Array.isArray(turns)||turns.length>40)throw Error('Start a new chat after 40 messages.');let total=0;const result=turns.map((turn,index)=>{if(!turn||turn.role!==(index%2?'assistant':'user')||typeof turn.content!=='string'||!turn.content.trim()||turn.content.length>20000)throw Error('Invalid conversation message.');total+=turn.content.length;return {role:turn.role,content:turn.content};});if(total>60000)throw Error('Conversation exceeds 60,000 characters. Start a new chat.');return result;}
+module.exports={validateTurns};

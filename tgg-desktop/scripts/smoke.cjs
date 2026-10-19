@@ -63,6 +63,15 @@ const os = require('node:os');
     await page.click('#chat-tab');await page.fill('#prompt','Local smoke test');await page.click('#send');
     await page.waitForFunction(()=>document.querySelector('#notice').textContent==='Response complete.');
     assert.match(await page.locator('#messages').textContent(),/Local model smoke response/);
+    await page.click('#chat-save');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Conversation saved'));
+    const savedId=await page.inputValue('#saved-chats');assert.ok(savedId);
+    const chatRecord=JSON.parse(fs.readFileSync(path.join(profile,'owner.json'),'utf8'));assert.equal(JSON.stringify(chatRecord).includes('Local smoke test'),false);
+    await page.click('#new-chat');assert.equal(await page.locator('#messages .user').count(),0);
+    await page.selectOption('#saved-chats',savedId);await page.click('#chat-load');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Saved conversation opened'));
+    assert.match(await page.locator('#messages').textContent(),/Local smoke test/);
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/tgg-chat.png')});
+    await page.click('#chat-delete');await page.waitForFunction(()=>document.querySelector('#saved-chats').options.length===1);
+
     await page.click('#owner-tab');await page.click('#local-models');await page.waitForFunction(()=>document.querySelector('#local-model-picker').options.length>1);await page.selectOption('#local-model-picker','qwen2.5:0.5b');assert.equal(await page.inputValue('#model'),'qwen2.5:0.5b');await page.selectOption('#provider','openai');
     await page.click('#remote-tab');
     assert.equal(await page.locator('#remote-panel').isVisible(),true);

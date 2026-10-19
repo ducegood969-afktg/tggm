@@ -27,3 +27,13 @@ TGGhub is free software included in this repository. Run it on an existing compu
 A self-signed certificate costs nothing, but Windows does not trust it by default. It would require each user to install and maintain trust manually; it is not a replacement for public publisher trust. This project does not install a new trust root, disable Windows checks, or weaken the existing signature verifier. Unsigned builds use manual downloads and have automatic updates disabled.
 
 OpenAI API usage is separately billed; avoiding signing fees does not make hosted AI inference free. TGG Source and local owner administration do not require an AI key.
+
+## Build without GitHub runners
+
+The connected GitHub account currently reports an Actions billing lock, and this integration's release asset uploads are rejected. Neither is a reason to buy Microsoft signing. You can build on your own Windows PC instead:
+
+1. Install free Node.js **24 LTS** from https://nodejs.org/ and reopen PowerShell.
+2. Download the release branch through GitHub **Code → Download ZIP**, extract it, and open PowerShell in that extracted repository folder.
+3. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\tgg-desktop\scripts\build-free.ps1`.
+
+The per-process execution-policy option permits this reviewed local build script to run; it does not change the machine's saved policy. The script stops on errors, installs locked dependencies, runs tests and the desktop smoke test, builds the unsigned installer and writes its SHA-256. It does not install the resulting app or make purchases. Build time, Internet access, disk space and a Windows x64 computer are required. This helper has not been executed on Windows in the cloud environment.

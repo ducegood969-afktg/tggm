@@ -1,6 +1,12 @@
 name: TGG AI Ultra free Windows preview
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/tgg-ai-ultra-windows-release]
+    paths:
+      - '.github/workflows/tgg-desktop-free.yml'
+      - 'tgg-desktop/**'
+      - 'tgg-source/**'
 permissions:
   contents: read
 jobs:

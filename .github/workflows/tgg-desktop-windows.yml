@@ -47,6 +47,7 @@ jobs:
         run: npm run dist:win
         env:
           TGG_WINDOWS_PUBLISHER: ${{ vars.TGG_WINDOWS_PUBLISHER }}
+          TGG_UPDATE_URL: ${{ vars.TGG_UPDATE_URL }}
           TGG_AZURE_SIGNING_ENDPOINT: ${{ vars.TGG_AZURE_SIGNING_ENDPOINT }}
           TGG_AZURE_SIGNING_ACCOUNT: ${{ vars.TGG_AZURE_SIGNING_ACCOUNT }}
           TGG_AZURE_CERTIFICATE_PROFILE: ${{ vars.TGG_AZURE_CERTIFICATE_PROFILE }}

@@ -4,6 +4,8 @@
   "type": "module",
   "version": "1.0.0",
   "scripts": {
+    "tgg:hub": "node tgg-hub/server.mjs",
+    "check:tgg-hub": "node --test tgg-hub/server.test.mjs",
     "tgg:source": "node tgg-source/server.mjs",
     "check:tgg-source": "node --check tgg-source/repo-policy.mjs && node --check tgg-source/check-store.mjs && node --check tgg-source/repo-store.mjs && node --check tgg-source/git-http.mjs && node --check tgg-source/collaboration-store.mjs && node --check tgg-source/server.mjs && node --check scripts/tgg-source-bootstrap-canonical.mjs",
     "tgg:projects": "node tgg-projects/server.mjs",

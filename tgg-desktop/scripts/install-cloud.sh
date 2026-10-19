@@ -44,6 +44,7 @@ npm run check:tgg-projects
 npm run check:tgg-higgsfield
 npm run check:tgg-app
 node --test scripts/tgg-project-events.test.mjs
+npm run check:tgg-hub
 
 cd "$desktop_dir"
 npm run dist:preview

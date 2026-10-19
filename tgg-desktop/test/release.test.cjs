@@ -16,3 +16,9 @@ test('certificate fallback pins publisher with current builder schema',async()=>
  await validateConfiguration({...require('../package.json').build,win:config.win},new DebugLogger(false));
  assert.throws(()=>releaseConfig({...env,CSC_LINK:''}),/CSC_LINK/);
 });
+
+test('TGGhub feed is opt-in and requires a clean HTTPS directory',()=>{
+ const env={TGG_SIGNING_PROVIDER:'pfx',TGG_WINDOWS_PUBLISHER:'TGG',CSC_LINK:'certificate.pfx',CSC_KEY_PASSWORD:'test',TGG_UPDATE_URL:'https://downloads.example.com/updates/'};
+ assert.deepEqual(releaseConfig(env).publish,[{provider:'generic',url:env.TGG_UPDATE_URL}]);
+ for(const url of ['http://downloads.example.com/updates/','https://user:password@example.com/updates/','https://example.com/updates','https://example.com/updates/?key=value'])assert.throws(()=>releaseConfig({...env,TGG_UPDATE_URL:url}));
+});

@@ -37,3 +37,7 @@ The exact Windows-packaged application archive and bundled Source payload were a
 ## 0.1.2 local AI development
 
 Ten desktop tests pass, including fixed-loopback Ollama requests, no forwarded API key, redirect rejection, provider validation and readable model/connectivity errors. The real sandboxed Linux GUI smoke also exercised provider switching, keyless local settings and a mocked local answer, while retaining owner locking and managed Source tests. Actual model inference, 0.1.2 Windows installation and upgrading the existing 0.1.1 user data remain unverified. TGG Studio has not been identified or connected.
+
+## 0.1.3 Studio launcher
+
+Eleven desktop tests pass, including rejection of remote/argument-bearing Studio paths, missing executables, unexpected resolved filenames, OS launch errors and locked-owner path changes. The owner supplied an installed Studio executable path under their Windows profile; no Studio API/version or project integration is known. Local Ollama inference inside 0.1.2 and saved settings were demonstrated by owner screenshots. Actual Studio launch on Windows and 0.1.3 upgrade acceptance remain unverified.

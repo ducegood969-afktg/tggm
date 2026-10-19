@@ -5,6 +5,7 @@ const path = require('node:path');
 const {pathToFileURL} = require('node:url');
 const {hashPassword, verifyPassword, validateSettings} = require('./security.cjs');
 const {verifyWindowsSignature} = require('./update-security.cjs');
+const {validateStudioPath,launchStudio}=require('./studio.cjs');
 const {complete} = require('./provider.cjs');
 const {SourceService} = require('./source-service.cjs');
 const sourceService=new SourceService({app,utilityProcess});
@@ -35,7 +36,7 @@ app.whenReady().then(() => {
   win.webContents.setWindowOpenHandler(() => ({action:'deny'}));
   win.webContents.on('will-navigate', e => e.preventDefault());
   win.on('blur', () => {unlockedUntil = 0;});
-  handle('status', () => {const config=record.settings?settings():null;return {initialized:!!record.password,configured:!!record.settings,unlocked:Date.now()<unlockedUntil,version:app.getVersion(),provider:config?.provider||'openai',model:config?.model};});
+  handle('status', () => {const config=record.settings?settings():null;return {initialized:!!record.password,configured:!!record.settings,unlocked:Date.now()<unlockedUntil,version:app.getVersion(),provider:config?.provider||'openai',model:config?.model,studioPath:record.studio?safeStorage.decryptString(Buffer.from(record.studio,'base64')):path.join(require('node:os').homedir(),'AppData','Local','Programs','TGG Studio','TGG_Studio.exe')};});
   handle('unlock', ({password}) => {
     if (Date.now()<retryAt) throw Error('Too many attempts. Wait one minute.');
     if (!record.password) {secureStorage(); save({...record,password:hashPassword(password)});}
@@ -44,6 +45,7 @@ app.whenReady().then(() => {
   });
   handle('lock', () => {unlockedUntil=0; return true;});
   handle('configure', input => {owner(); secureStorage(); const config=validateSettings(input); save({...record,settings:safeStorage.encryptString(JSON.stringify(config)).toString('base64')});return true;});
+  handle('studio-configure',async value=>{owner();secureStorage();const executable=await validateStudioPath(value);owner();save({...record,studio:safeStorage.encryptString(executable).toString('base64')});return true;});
   handle('chat', async text => {
     if(typeof text!=='string'||!text.trim()||text.length>20000) throw Error('Enter a message of at most 20,000 characters.');
     if(busy) throw Error('A request is already running.');
@@ -54,6 +56,7 @@ app.whenReady().then(() => {
   });
   const services={projects:'http://127.0.0.1:10020',creative:'http://127.0.0.1:10040'};
   handle('service', async name => {
+    if(name==='studio'){if(!record.studio)throw Error('Unlock Owner settings and save the TGG Studio path first.');secureStorage();return launchStudio(safeStorage.decryptString(Buffer.from(record.studio,'base64')),{openPath:file=>shell.openPath(file)});}
     if(name==='source'){
       const url=await sourceService.start();
       const sourceSession=session.fromPartition('tgg-source');

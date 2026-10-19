@@ -10,6 +10,7 @@
     "start": "electron .",
     "test": "node --test test/*.test.cjs",
     "dist:win": "node scripts/release.cjs",
+    "dist:unsigned": "npm run prepare:git && electron-builder --win nsis --x64 --publish never -c.win.signExecutable=false -c.win.forceCodeSigning=false",
     "pack": "electron-builder --dir",
     "smoke": "node scripts/smoke.cjs",
     "smoke:cloud": "bash scripts/smoke-cloud.sh",

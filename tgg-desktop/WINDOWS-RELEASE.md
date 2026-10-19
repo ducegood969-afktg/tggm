@@ -1,5 +1,7 @@
 # Microsoft cloud signing and Windows release
 
+Microsoft signing is optional. The owner has chosen the [free unsigned release route](FREE-RELEASE.md); no Azure purchase or identity enrollment is required for that route. This document describes the optional future trusted-signing configuration.
+
 The selected default is **Microsoft Artifact Signing (formerly Azure Trusted Signing)** using electron-builder's supported signing hook and Microsoft's ArtifactSigning PowerShell module (pinned to 0.1.20). It keeps private signing keys in Microsoft's managed service. Do not purchase/export a PFX for this workflow. The existing PFX option remains available only when explicitly selected.
 
 ## Owner actions that cannot be automated here

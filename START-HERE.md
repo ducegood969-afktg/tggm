@@ -8,6 +8,8 @@ This cloud session can change, test and push repository code. It does not have a
 
 ## Build an update on Windows
 
+For no command typing, save `Update-TGG.cmd` to your desktop and double-click it. It resolves the latest commit on the fixed TGG development branch, validates the full SHA, downloads the PowerShell helper at that immutable commit, and runs the existing builder. Node.js 24 and Internet access are still required. PowerShell runs underneath; there is no system-wide execution-policy change. Each click builds the current development preview rather than a signed stable release. It opens the installer folder but does not install or close TGG automatically. This `.cmd` wrapper has been reviewed in Linux but still requires a Windows run to verify.
+
 `Update-TGG.ps1` is a manual helper that works from any current directory and requires Node.js 24. Download that script from a reviewed commit, then run it with the full 40-character commit you intend to build:
 
 ```powershell

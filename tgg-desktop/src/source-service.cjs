@@ -48,6 +48,11 @@ class SourceService {
    });
   });
  }
+ async api(route,{method='GET',body}={}){
+  if(!route.startsWith('/v1/')||route.includes('..'))throw Error('Invalid Source route.');
+  const base=await this.start();const response=await fetch(new URL(route.slice(1),base),{method,redirect:'error',headers:{Cookie:'tgg_source_session='+this.token,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(30000)});
+  const data=await response.json();if(!response.ok||data.ok===false)throw Error('Source snapshot failed: '+(data.error||response.status));return data;
+ }
  stop(){this.stopping=true;this.child?.kill();this.child=null;this.url=null;this.pending=null;}
 }
 module.exports={SourceService};

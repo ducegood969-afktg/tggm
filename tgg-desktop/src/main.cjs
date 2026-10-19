@@ -1,15 +1,18 @@
-const {app, BrowserWindow, ipcMain, safeStorage, shell, session, utilityProcess} = require('electron');
+const {app, BrowserWindow, ipcMain, safeStorage, shell, session, utilityProcess, dialog} = require('electron');
 const {autoUpdater} = require('electron-updater');
 const fs = require('node:fs');
 const path = require('node:path');
 const {pathToFileURL} = require('node:url');
 const {hashPassword, verifyPassword, validateSettings} = require('./security.cjs');
 const {verifyWindowsSignature} = require('./update-security.cjs');
+const {diagnostics}=require('./remote-tools.cjs');
+const {supportBundle}=require('./remote-support.cjs');
+const {reviewProject,saveProject}=require('./project-snapshot.cjs');
 const {validateStudioPath,launchStudio}=require('./studio.cjs');
 const {complete} = require('./provider.cjs');
 const {SourceService} = require('./source-service.cjs');
 const sourceService=new SourceService({app,utilityProcess});
-let sourceWindow;
+let sourceWindow,projectReview=null,selectingProject=false,snapshotBusy=false;
 let win, record = {}, unlockedUntil = 0, attempts = 0, retryAt = 0, busy = false;
 const page = pathToFileURL(path.join(__dirname, 'index.html')).href;
 const file = () => path.join(app.getPath('userData'), 'owner.json');
@@ -35,7 +38,7 @@ app.whenReady().then(() => {
   win = new BrowserWindow({width:1160,height:820,minWidth:760,minHeight:600,backgroundColor:'#0b1020',webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
   win.webContents.setWindowOpenHandler(() => ({action:'deny'}));
   win.webContents.on('will-navigate', e => e.preventDefault());
-  win.on('blur', () => {unlockedUntil = 0;});
+  win.on('blur', () => {if(!selectingProject)unlockedUntil = 0;});
   handle('status', () => {const config=record.settings?settings():null;return {initialized:!!record.password,configured:!!record.settings,unlocked:Date.now()<unlockedUntil,version:app.getVersion(),provider:config?.provider||'openai',model:config?.model,studioPath:record.studio?safeStorage.decryptString(Buffer.from(record.studio,'base64')):path.join(require('node:os').homedir(),'AppData','Local','Programs','TGG Studio','TGG_Studio.exe')};});
   handle('unlock', ({password}) => {
     if (Date.now()<retryAt) throw Error('Too many attempts. Wait one minute.');
@@ -46,6 +49,37 @@ app.whenReady().then(() => {
   handle('lock', () => {unlockedUntil=0; return true;});
   handle('configure', input => {owner(); secureStorage(); const config=validateSettings(input); save({...record,settings:safeStorage.encryptString(JSON.stringify(config)).toString('base64')});return true;});
   handle('studio-configure',async value=>{owner();secureStorage();const executable=await validateStudioPath(value);owner();save({...record,studio:safeStorage.encryptString(executable).toString('base64')});return true;});
+  handle('remote-diagnostics',async()=>{
+    owner();return diagnostics({version:app.getVersion(),source:()=>sourceService.api('/v1/repos'),studio:record.studio?()=>{secureStorage();return validateStudioPath(safeStorage.decryptString(Buffer.from(record.studio,'base64')));}:null});
+  });
+  handle('remote-screenshot',async()=>{
+    owner();if(selectingProject)throw Error('Close the active file dialog first.');
+    let selected;selectingProject=true;try{selected=await dialog.showSaveDialog(win,{title:'Save a screenshot of this TGG AI Ultra window',defaultPath:'TGG-Remote-app.png',filters:[{name:'PNG image',extensions:['png']}]});}finally{selectingProject=false;}
+    if(selected.canceled)return {cancelled:true};owner();const image=await win.webContents.capturePage();owner();fs.writeFileSync(selected.filePath,image.toPNG(),{mode:0o600});return {saved:true};
+  });
+  handle('project-review',async()=>{
+    owner();if(snapshotBusy||selectingProject)throw Error('A project operation is already running.');projectReview=null;
+    let selected;selectingProject=true;try{selected=await dialog.showOpenDialog(win,{title:'Choose the Studio project folder to review',properties:['openDirectory']});}finally{selectingProject=false;}
+    if(selected.canceled)return {cancelled:true};owner();snapshotBusy=true;
+    try{const snapshot=await reviewProject(selected.filePaths[0]);owner();const id=require('node:crypto').randomUUID();projectReview={id,snapshot,expires:Date.now()+300000};return {id,folder:snapshot.root,files:snapshot.files.map(f=>f.path),skipped:snapshot.skipped,bytes:snapshot.bytes};}finally{snapshotBusy=false;}
+  });
+  handle('remote-export',async id=>{
+    owner();if(snapshotBusy||selectingProject)throw Error('A project operation is already running.');
+    const pending=projectReview;if(!pending||pending.id!==id||pending.expires<Date.now())throw Error('Review the project again before exporting.');
+    let selected;selectingProject=true;try{selected=await dialog.showSaveDialog(win,{title:'Save reviewed TGG Remote support bundle',defaultPath:'TGG-Remote-support.json',filters:[{name:'TGG Remote JSON',extensions:['json']}]});}finally{selectingProject=false;}
+    if(selected.canceled)return {cancelled:true};owner();
+    const bundle=supportBundle(pending.snapshot,{version:app.getVersion(),platform:process.platform,arch:process.arch});
+    fs.writeFileSync(selected.filePath,JSON.stringify(bundle,null,2),{mode:0o600});return {saved:true};
+  });
+  handle('project-save',async id=>{
+    owner();if(snapshotBusy||selectingProject)throw Error('A project operation is already running.');
+    const pending=projectReview;if(!pending||pending.id!==id||pending.expires<Date.now())throw Error('Review the project again before saving.');
+    snapshotBusy=true;
+    try{secureStorage();const links=record.projects?JSON.parse(safeStorage.decryptString(Buffer.from(record.projects,'base64'))):{};
+      const result=await saveProject(pending.snapshot,{api:(route,options)=>sourceService.api(route,options),link:links[pending.snapshot.root]});
+      links[pending.snapshot.root]={repo:result.repo};save({...record,projects:safeStorage.encryptString(JSON.stringify(links)).toString('base64')});projectReview=null;return result;
+    }finally{snapshotBusy=false;}
+  });
   handle('chat', async text => {
     if(typeof text!=='string'||!text.trim()||text.length>20000) throw Error('Enter a message of at most 20,000 characters.');
     if(busy) throw Error('A request is already running.');

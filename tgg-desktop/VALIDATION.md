@@ -41,3 +41,7 @@ Ten desktop tests pass, including fixed-loopback Ollama requests, no forwarded A
 ## 0.1.3 Studio launcher
 
 Eleven desktop tests pass, including rejection of remote/argument-bearing Studio paths, missing executables, unexpected resolved filenames, OS launch errors and locked-owner path changes. The owner supplied an installed Studio executable path under their Windows profile; no Studio API/version or project integration is known. Local Ollama inference inside 0.1.2 and saved settings were demonstrated by owner screenshots. Actual Studio launch on Windows and 0.1.3 upgrade acceptance remain unverified.
+
+## 0.1.4 project and TGG Remote tools
+
+Fourteen desktop tests pass. The managed Source integration test now creates successive real Git snapshots from a temporary project, checks no-change behavior and retained repositories after backend restart. Project filtering excludes common secrets, dependency folders, binary/non-UTF-8 content and symlinks. Remote bundle tests verify that only reviewed text and selected metadata are exported. Locked-owner tool requests are rejected. Real sandboxed Linux GUI smoke exercises review, JSON export, local Source snapshot, diagnostics and app PNG capture; native dialog selections and Ollama answers are stubbed to deterministic test fixtures. The original project text remains unchanged. Windows native pickers, 0.1.4 upgrade and live screen/command access have not been verified; live screen/command access is not implemented.

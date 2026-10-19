@@ -10,6 +10,7 @@ test('desktop owner, IPC boundary, encrypted settings, provider request and fail
  require('../src/main.cjs');await new Promise(resolve=>setImmediate(resolve));
  const invoke=(name,arg,event={sender:window.webContents,senderFrame:frame})=>handlers[name](event,arg);
  assert.equal((await invoke('configure',{apiKey:'test',model:'gpt-4.1-mini'})).ok,false);
+ for(const name of ['project-review','project-save','remote-export','remote-diagnostics','remote-screenshot'])assert.match((await invoke(name,'unknown')).error,/Unlock/);
  assert.match((await invoke('studio-configure','C:\\TGG Studio\\TGG_Studio.exe')).error,/Unlock/);
  assert.equal((await invoke('unlock',{password:'a secure owner password'})).ok,true);
  assert.equal((await invoke('configure',{apiKey:'test',model:'gpt-4.1-mini'})).ok,true);

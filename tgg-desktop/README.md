@@ -38,7 +38,7 @@ Setup installs a small rootless Xvfb/keyring environment using signed Debian rep
 
 **No-purchase route:** follow [FREE-RELEASE.md](FREE-RELEASE.md). `npm run dist:unsigned` builds on Windows without Microsoft signing or an Azure subscription. The separate **TGG AI Ultra free Windows preview** workflow tests the installer and provides downloadable artifacts with checksums. Unsigned builds use manual updates and may show Windows security warnings. TGGhub can host the downloads on an existing server; public hosting is not created automatically.
 
-`npm run dist:preview` produces an **unsigned engineering installer** at `dist-preview/TGG-AI-Ultra-Setup-0.1.3-x64.exe`. The Linux build uses electron-builder's native UninstallerReader through a custom packaging target, avoiding Wine's unavailable 32-bit execution. This adapter uses the pinned builder version, changes no installed dependency files, and is separate from production signing. It does not prove the installer runs on Windows. Windows acceptance must pass before distribution.
+`npm run dist:preview` produces an **unsigned engineering installer** at `dist-preview/TGG-AI-Ultra-Setup-0.1.4-x64.exe`. The Linux build uses electron-builder's native UninstallerReader through a custom packaging target, avoiding Wine's unavailable 32-bit execution. This adapter uses the pinned builder version, changes no installed dependency files, and is separate from production signing. It does not prove the installer runs on Windows. Windows acceptance must pass before distribution.
 
 `npm run dist:win` produces a **signed production installer** using Microsoft cloud signing. It requires the validated publisher and signing account settings; missing settings fail closed. See [WINDOWS-RELEASE.md](WINDOWS-RELEASE.md) for Azure OIDC configuration, required accounts, costs, the Windows workflow and secure publication steps. The workflow can also build/test an unsigned installer with `signed=false` before Azure setup. It uploads artifacts without publishing a release.
 
@@ -61,3 +61,7 @@ See [VALIDATION.md](VALIDATION.md) for executed checks and the remaining externa
 ## TGG Studio launcher in 0.1.3
 
 Owner settings includes a separate TGG Studio path form. Unlock, enter its shortcut Target (for example `C:\Users\you\AppData\Local\Programs\TGG Studio\TGG_Studio.exe`), and save. **Open TGG Studio** opens that existing installation. The default suggestion uses the current Windows user profile; a custom path is supported. Configuration is owner-protected and OS-encrypted. The launcher only accepts a real local file named TGG_Studio.exe, without URLs, UNC shares or arguments, and checks it again before opening. Windows performs the launch. This is a shortcut integration, not shared projects, synchronization, remote control or AI integration. Studio must already be installed. Actual Windows Studio launching remains to be checked on the owner laptop.
+
+## TGG Remote project tools in 0.1.4
+
+See [TGG-REMOTE.md](TGG-REMOTE.md) for owner-reviewed Studio project snapshots, support-file export, local connection diagnostics and app-window screenshots. Tools are in Owner settings. Nothing is uploaded automatically, and no live remote-control connection is created. Source snapshots copy supported text only and do not mirror deletions or binary assets.

@@ -15,6 +15,9 @@ function rememberProject(folder,name){const value=library();value.remember(folde
 const {diagnostics}=require('./remote-tools.cjs');
 const {supportBundle}=require('./remote-support.cjs');
 const {reviewProject,saveProject}=require('./project-snapshot.cjs');
+const {validateOsPath,launchOs}=require('./tgg-os.cjs');
+const defaultOsPath=()=>path.join(require('node:os').homedir(),'AppData','Local','TGG Everything OS','TGG_EVERYTHING_OS_v1.7.4.exe');
+function osPath(){secureStorage();return record.os?safeStorage.decryptString(Buffer.from(record.os,'base64')):defaultOsPath();}
 const {validateStudioPath,launchStudio}=require('./studio.cjs');
 const {complete} = require('./provider.cjs');
 const {SourceService} = require('./source-service.cjs');
@@ -47,7 +50,7 @@ app.whenReady().then(() => {
   win.webContents.setWindowOpenHandler(() => ({action:'deny'}));
   win.webContents.on('will-navigate', e => e.preventDefault());
   win.on('blur', () => {if(!selectingProject)unlockedUntil = 0;});
-  handle('status', () => {const config=record.settings?settings():null;return {initialized:!!record.password,configured:!!record.settings,unlocked:Date.now()<unlockedUntil,version:app.getVersion(),provider:config?.provider||(config?'openai':'ollama'),model:config?.model,studioPath:record.studio?safeStorage.decryptString(Buffer.from(record.studio,'base64')):path.join(require('node:os').homedir(),'AppData','Local','Programs','TGG Studio','TGG_Studio.exe')};});
+  handle('status', () => {const config=record.settings?settings():null;return {initialized:!!record.password,configured:!!record.settings,unlocked:Date.now()<unlockedUntil,version:app.getVersion(),provider:config?.provider||(config?'openai':'ollama'),model:config?.model,osPath:osPath(),studioPath:record.studio?safeStorage.decryptString(Buffer.from(record.studio,'base64')):path.join(require('node:os').homedir(),'AppData','Local','Programs','TGG Studio','TGG_Studio.exe')};});
   handle('unlock', ({password}) => {
     if (Date.now()<retryAt) throw Error('Too many attempts. Wait one minute.');
     if (!record.password) {secureStorage(); save({...record,password:hashPassword(password)});}
@@ -57,6 +60,7 @@ app.whenReady().then(() => {
   handle('lock', () => {unlockedUntil=0; return true;});
   handle('configure', input => {owner(); secureStorage(); const config=validateSettings(input); save({...record,settings:safeStorage.encryptString(JSON.stringify(config)).toString('base64')});return true;});
   handle('studio-configure',async value=>{owner();secureStorage();const executable=await validateStudioPath(value);owner();save({...record,studio:safeStorage.encryptString(executable).toString('base64')});return true;});
+  handle('os-configure',async value=>{owner();secureStorage();const executable=await validateOsPath(value);owner();save({...record,os:safeStorage.encryptString(executable).toString('base64')});return true;});
   handle('local-models',()=>listLocalModels());
   handle('workspace-propose',async input=>{
     owner();if(!input||busy)throw Error('Wait for the current AI request to finish.');
@@ -74,7 +78,7 @@ app.whenReady().then(() => {
   handle('library-open',async id=>{owner();if(selectingProject)throw Error('Close the active file dialog first.');const entry=library().get(id);const result=await workspace.open(entry.folder);owner();rememberProject(result.folder);return result;});
   handle('workspace-save',input=>{owner();if(selectingProject)throw Error('Close the active file dialog first.');return workspace.save(input);});
   handle('remote-diagnostics',async()=>{
-    owner();return diagnostics({version:app.getVersion(),source:()=>sourceService.api('/v1/repos'),studio:record.studio?()=>{secureStorage();return validateStudioPath(safeStorage.decryptString(Buffer.from(record.studio,'base64')));}:null});
+    owner();return diagnostics({version:app.getVersion(),source:()=>sourceService.api('/v1/repos'),everythingOs:()=>validateOsPath(osPath()),studio:record.studio?()=>{secureStorage();return validateStudioPath(safeStorage.decryptString(Buffer.from(record.studio,'base64')));}:null});
   });
   handle('remote-screenshot',async()=>{
     owner();if(selectingProject)throw Error('Close the active file dialog first.');
@@ -114,6 +118,7 @@ app.whenReady().then(() => {
   });
   const services={projects:'http://127.0.0.1:10020',creative:'http://127.0.0.1:10040'};
   handle('service', async name => {
+    if(name==='os')return launchOs(osPath(),{openPath:file=>shell.openPath(file)});
     if(name==='browser'){if(!browserWindow||browserWindow.isDestroyed())browserWindow=require('./browser.cjs').createBrowser({BrowserWindow,WebContentsView,session,ipcMain});browserWindow.show();browserWindow.focus();return true;}
     if(name==='studio'){if(!record.studio)throw Error('Unlock Owner settings and save the TGG Studio path first.');secureStorage();return launchStudio(safeStorage.decryptString(Buffer.from(record.studio,'base64')),{openPath:file=>shell.openPath(file)});}
     if(name==='source'){

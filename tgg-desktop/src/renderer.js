@@ -3,15 +3,21 @@ const $ = id => document.getElementById(id);
 const notice = text => {$('notice').textContent=text;};
 async function call(name,arg){const r=await window.tgg[name](arg);if(!r.ok)throw Error(r.error);return r.data;}
 function run(fn){return async event=>{event?.preventDefault();try{await fn();}catch(e){notice(e.message);}};}
-$('chat-tab').onclick=()=>{$('chat-panel').hidden=false;$('owner-panel').hidden=true;};
-$('owner-tab').onclick=()=>{$('chat-panel').hidden=true;$('owner-panel').hidden=false;};
+function showView(view){for(const name of ['chat','owner','remote']){$(name+'-panel').hidden=name!==view;const tab=$(name+'-tab');tab.classList.toggle('active',name===view);if(name===view)tab.setAttribute('aria-current','page');else tab.removeAttribute('aria-current');}$('view-title').textContent={chat:'AI workspace',owner:'Owner settings',remote:'TGG Remote'}[view];}
+for(const view of ['chat','owner','remote'])$(view+'-tab').onclick=()=>showView(view);
+$('remote-owner').onclick=()=>{showView('owner');$('password').focus();};
+function providerLabel(provider,model){$('provider-chip').textContent=(provider==='ollama'?'Local · ':'OpenAI · ')+model;$('composer-provider').textContent=provider==='ollama'?`${model} · On this computer`:`${model} · OpenAI API`;}
+const welcome=$('messages').firstElementChild.cloneNode(true);let chatBusy=false;
+$('new-chat').onclick=()=>{if(chatBusy)return;$('messages').replaceChildren(welcome.cloneNode(true));$('prompt').value='';$('prompt').focus();notice('New chat ready. Messages are not saved.');};
+$('messages').onclick=event=>{const button=event.target.closest('[data-prompt]');if(button){$('prompt').value=button.dataset.prompt;$('prompt').focus();}};
+
 $('unlock-form').onsubmit=run(async()=>{try{await call('unlock',{password:$('password').value});notice('Owner settings unlocked for five minutes.');}finally{$('password').value='';}});
 $('lock').onclick=run(async()=>{await call('lock');notice('Owner settings locked.');});
-$('settings-form').onsubmit=run(async()=>{try{await call('configure',{provider:$('provider').value,apiKey:$('api-key').value,model:$('model').value});notice('Provider settings saved using OS encryption.');}finally{$('api-key').value='';}});
+$('settings-form').onsubmit=run(async()=>{try{await call('configure',{provider:$('provider').value,apiKey:$('api-key').value,model:$('model').value});providerLabel($('provider').value,$('model').value);notice('Provider settings saved using OS encryption.');}finally{$('api-key').value='';}});
 $('provider').onchange=()=>{const local=$('provider').value==='ollama';$('api-key').required=!local;$('api-key').hidden=local;$('key-label').hidden=local;$('api-key').value='';$('model').value=providerModels[$('provider').value];$('provider-help').textContent=local?'Install Ollama, run ollama pull qwen2.5:0.5b, and keep Ollama running. Model downloads need Internet and disk space; inference uses your laptop hardware.':'OpenAI requires an API key and separate billing.';};
 $('studio-form').onsubmit=run(async()=>{await call('studio-configure',$('studio-path').value);notice('TGG Studio launch path saved. Use Open TGG Studio to launch it.');});
-function message(text,role){const el=document.createElement('article');el.className=role;el.textContent=text;$('messages').append(el);el.scrollIntoView({block:'end'});}
-$('chat-form').onsubmit=run(async()=>{const text=$('prompt').value;message(text,'user');$('send').disabled=true;notice('Generating…');try{const answer=await call('chat',text);message(answer,'assistant');$('prompt').value='';notice('Response complete.');}finally{$('send').disabled=false;}});
+function message(text,role){$('messages').querySelector('.welcome')?.remove();const el=document.createElement('article');el.className=role;el.textContent=text;$('messages').append(el);el.scrollIntoView({block:'end'});}
+$('chat-form').onsubmit=run(async()=>{const text=$('prompt').value;chatBusy=true;$('new-chat').disabled=true;message(text,'user');$('send').disabled=true;notice('Generating…');try{const answer=await call('chat',text);message(answer,'assistant');$('prompt').value='';notice('Response complete.');}finally{chatBusy=false;$('new-chat').disabled=false;$('send').disabled=false;}});
 $('update').onclick=run(async()=>{notice('Checking for signed updates…');await call('updates');});
 document.querySelectorAll('[data-service]').forEach(el=>el.onclick=run(async()=>{
   el.disabled=true;
@@ -20,7 +26,7 @@ document.querySelectorAll('[data-service]').forEach(el=>el.onclick=run(async()=>
   finally{el.disabled=false;}
 }));
 window.addEventListener('tgg-update',event=>notice(event.detail));
-run(async()=>{const s=await call('status');$('provider').value=s.provider||'openai';$('provider').onchange();if(s.model)$('model').value=s.model;$('studio-path').value=s.studioPath||'';$('version').textContent=`Version ${s.version}`;notice(s.configured?'Provider configured. Ready for your next idea.':s.initialized?'Unlock Owner settings to configure your provider.':'Open Owner settings to create your local owner password.');})();
+run(async()=>{const s=await call('status');$('provider').value=s.provider||'openai';$('provider').onchange();if(s.model)$('model').value=s.model;if(s.configured)providerLabel(s.provider,s.model);$('studio-path').value=s.studioPath||'';$('version').textContent=`Version ${s.version}`;notice(s.configured?'Provider configured. Ready for your next idea.':s.initialized?'Unlock Owner settings to configure your provider.':'Open Owner settings to create your local owner password.');})();
 
 let projectReviewId=null;
 $('project-review').onclick=run(async()=>{projectReviewId=null;$('project-save').disabled=true;$('remote-export').disabled=true;$('project-summary').textContent='Reviewing…';try{const result=await call('project-review');if(result.cancelled){$('project-summary').textContent='Selection cancelled.';return;}projectReviewId=result.id;$('project-summary').textContent=`${result.folder}\n${result.files.length} text files · ${result.bytes} bytes\n\nIncluded:\n${result.files.join('\n')}\n\nSkipped:\n${result.skipped.join('\n')||'None'}`;$('project-save').disabled=false;$('remote-export').disabled=false;notice('Review the included files before saving. The snapshot contains the text read during this review.');}catch(error){$('project-summary').textContent='';throw error;}});

@@ -45,3 +45,7 @@ Eleven desktop tests pass, including rejection of remote/argument-bearing Studio
 ## 0.1.4 project and TGG Remote tools
 
 Fourteen desktop tests pass. The managed Source integration test now creates successive real Git snapshots from a temporary project, checks no-change behavior and retained repositories after backend restart. Project filtering excludes common secrets, dependency folders, binary/non-UTF-8 content and symlinks. Remote bundle tests verify that only reviewed text and selected metadata are exported. Locked-owner tool requests are rejected. Real sandboxed Linux GUI smoke exercises review, JSON export, local Source snapshot, diagnostics and app PNG capture; native dialog selections and Ollama answers are stubbed to deterministic test fixtures. The original project text remains unchanged. Windows native pickers, 0.1.4 upgrade and live screen/command access have not been verified; live screen/command access is not implemented.
+
+## 0.1.5 Obsidian redesign
+
+Fourteen desktop tests pass. Real sandboxed GUI smoke checks AI/Owner/Remote navigation, existing owner/provider behavior, local AI protocol, Source and support tools, New Chat and suggested prompts. Screenshots were inspected at 1160px and 760px window widths, with no horizontal body overflow at the compact size and a visible Send action. Native Windows 0.1.5 upgrade and visual acceptance remain to be checked on the owner laptop. The separate Studio executable was not modified.

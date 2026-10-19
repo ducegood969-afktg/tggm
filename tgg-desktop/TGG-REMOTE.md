@@ -1,6 +1,6 @@
 # TGG Remote project support — 0.1.4
 
-TGG Remote's first implementation is embedded in TGG AI Ultra Owner settings. It lets the owner select project text, review filenames, save local Source history and export a support file to share deliberately. It is not a remote-desktop service and does not give this chat live access to a laptop, screen, keyboard, files or terminal. No inbound listener, unattended agent, remote shell, startup service or network upload is installed by this feature.
+TGG Remote is embedded in TGG AI Ultra. In 0.1.5 it has a dedicated sidebar view; owner unlocking remains in Owner settings. It lets the owner select project text, review filenames, save local Source history and export a support file to share deliberately. It is not a remote-desktop service and does not give this chat live access to a laptop, screen, keyboard, files or terminal. No inbound listener, unattended agent, remote shell, startup service or network upload is installed by this feature.
 
 ## Available tools
 
@@ -15,7 +15,7 @@ Live screen viewing, mouse/keyboard control, arbitrary shell commands, unattende
 
 ## Project snapshots
 
-Unlock Owner settings. Under **TGG Remote · project support**, choose **Choose project and review files** and select the exact Studio project folder. The modal folder picker temporarily preserves the existing owner unlock; expiry is still enforced. Review included and skipped filenames. Then choose **Save reviewed text to Source**. Source starts inside the desktop app if necessary. Open TGG Source and Refresh to find the generated `studio-...` repository. Repeating review/save for the same canonical folder adds a commit to the same linked repository. Links are kept in OS-encrypted app settings.
+Unlock Owner settings, then open **TGG Remote** in the sidebar. Under **Project snapshots & support**, choose **Choose project and review files** and select the exact Studio project folder. The modal folder picker temporarily preserves the existing owner unlock; expiry is still enforced. Review included and skipped filenames. Then choose **Save reviewed text to Source**. Source starts inside the desktop app if necessary. Open TGG Source and Refresh to find the generated `studio-...` repository. Repeating review/save for the same canonical folder adds a commit to the same linked repository. Links are kept in OS-encrypted app settings.
 
 This is a text snapshot, not Git synchronization or a complete backup. It copies the reviewed UTF-8 content into the separate Source store; it never writes to the Studio project folder. Changes after review are not included until a new review. Only additions and updates are copied; file deletions are not mirrored, so removed files can remain in Source. Existing repositories are not chosen or overwritten by name; a new repository is created for the first snapshot. Moving a project folder creates a new link. Each review expires after five minutes.
 

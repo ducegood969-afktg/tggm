@@ -63,6 +63,9 @@ const os = require('node:os');
     await page.waitForFunction(()=>document.querySelector('#notice').textContent==='Response complete.');
     assert.match(await page.locator('#messages').textContent(),/Local model smoke response/);
     await page.click('#owner-tab');await page.selectOption('#provider','openai');
+    await page.click('#remote-tab');
+    assert.equal(await page.locator('#remote-panel').isVisible(),true);
+    assert.equal(await page.locator('#owner-panel').isVisible(),false);
     assert.equal(await page.locator('#project-review').count(),1);
     assert.equal(await page.locator('#remote-export').isDisabled(),true);
     assert.equal(await page.locator('#project-save').isDisabled(),true);
@@ -85,7 +88,20 @@ const os = require('node:os');
     // A signed packaged app can contact its real feed; test the disabled update path only in development.
     if(!process.env.TGG_TEST_EXE){await page.click('#update');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('signed release'));}
     fs.mkdirSync(path.resolve(__dirname,'../test-results'),{recursive:true});
-    await page.click('#chat-tab');await page.screenshot({path:path.resolve(__dirname,'../test-results/desktop.png')});
+    await page.click('#chat-tab');await page.click('#new-chat');
+    assert.equal(await page.locator('#messages .user').count(),0);
+    assert.equal(await page.locator('#messages .welcome').count(),1);
+    await page.locator('[data-prompt]').first().click();assert.match(await page.inputValue('#prompt'),/plan a small app/);
+    await page.click('#new-chat');assert.equal(await page.inputValue('#prompt'),'');
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/desktop.png')});
+    await page.click('#owner-tab');await page.screenshot({path:path.resolve(__dirname,'../test-results/owner.png')});
+    await page.click('#remote-tab');await page.screenshot({path:path.resolve(__dirname,'../test-results/remote.png')});
+    await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setBounds({width:760,height:700}));
+    await page.click('#chat-tab');await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await page.evaluate(()=>document.body.scrollWidth<=innerWidth+1),true);
+    assert.equal(await page.locator('#send').isVisible(),true);
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/desktop-compact.png')});
+
     assert.deepEqual(errors,[]);
     console.log(JSON.stringify({ok:true,checks:['real GUI','sandbox enabled','owner setup','OS encryption round trip','mocked chat rendered as text','owner lock','managed Source startup and repository creation','project review and real Source snapshot','support export','local diagnostics','app screenshot'],backend:secure.backend}));
   } finally {

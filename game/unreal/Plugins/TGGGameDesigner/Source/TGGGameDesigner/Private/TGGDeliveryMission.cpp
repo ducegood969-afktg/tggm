@@ -244,4 +244,3 @@ bool ATGGDeliveryMission::CollectBusinessRevenue(int32 InGameDay)
     }
     return CommitState(Stage, NewCash, OwnedPropertyIDs, InGameDay);
 }
-

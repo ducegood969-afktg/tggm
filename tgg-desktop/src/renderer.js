@@ -1,3 +1,4 @@
+const providerModels={openai:'gpt-4.1-mini',ollama:'qwen2.5:0.5b'};
 const $ = id => document.getElementById(id);
 const notice = text => {$('notice').textContent=text;};
 async function call(name,arg){const r=await window.tgg[name](arg);if(!r.ok)throw Error(r.error);return r.data;}
@@ -6,7 +7,8 @@ $('chat-tab').onclick=()=>{$('chat-panel').hidden=false;$('owner-panel').hidden=
 $('owner-tab').onclick=()=>{$('chat-panel').hidden=true;$('owner-panel').hidden=false;};
 $('unlock-form').onsubmit=run(async()=>{try{await call('unlock',{password:$('password').value});notice('Owner settings unlocked for five minutes.');}finally{$('password').value='';}});
 $('lock').onclick=run(async()=>{await call('lock');notice('Owner settings locked.');});
-$('settings-form').onsubmit=run(async()=>{try{await call('configure',{apiKey:$('api-key').value,model:$('model').value});notice('Provider settings saved using OS encryption.');}finally{$('api-key').value='';}});
+$('settings-form').onsubmit=run(async()=>{try{await call('configure',{provider:$('provider').value,apiKey:$('api-key').value,model:$('model').value});notice('Provider settings saved using OS encryption.');}finally{$('api-key').value='';}});
+$('provider').onchange=()=>{const local=$('provider').value==='ollama';$('api-key').required=!local;$('api-key').hidden=local;$('key-label').hidden=local;$('api-key').value='';$('model').value=providerModels[$('provider').value];$('provider-help').textContent=local?'Install Ollama, run ollama pull qwen2.5:0.5b, and keep Ollama running. Model downloads need Internet and disk space; inference uses your laptop hardware.':'OpenAI requires an API key and separate billing.';};
 function message(text,role){const el=document.createElement('article');el.className=role;el.textContent=text;$('messages').append(el);el.scrollIntoView({block:'end'});}
 $('chat-form').onsubmit=run(async()=>{const text=$('prompt').value;message(text,'user');$('send').disabled=true;notice('Generating…');try{const answer=await call('chat',text);message(answer,'assistant');$('prompt').value='';notice('Response complete.');}finally{$('send').disabled=false;}});
 $('update').onclick=run(async()=>{notice('Checking for signed updates…');await call('updates');});
@@ -17,4 +19,4 @@ document.querySelectorAll('[data-service]').forEach(el=>el.onclick=run(async()=>
   finally{el.disabled=false;}
 }));
 window.addEventListener('tgg-update',event=>notice(event.detail));
-run(async()=>{const s=await call('status');$('version').textContent=`Version ${s.version}`;notice(s.configured?'Provider configured. Ready for your next idea.':s.initialized?'Unlock Owner settings to configure your provider.':'Open Owner settings to create your local owner password.');})();
+run(async()=>{const s=await call('status');$('provider').value=s.provider||'openai';$('provider').onchange();if(s.model)$('model').value=s.model;$('version').textContent=`Version ${s.version}`;notice(s.configured?'Provider configured. Ready for your next idea.':s.initialized?'Unlock Owner settings to configure your provider.':'Open Owner settings to create your local owner password.');})();

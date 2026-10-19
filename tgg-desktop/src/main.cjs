@@ -5,6 +5,7 @@ const path = require('node:path');
 const {pathToFileURL} = require('node:url');
 const {hashPassword, verifyPassword, validateSettings} = require('./security.cjs');
 const {verifyWindowsSignature} = require('./update-security.cjs');
+const {complete} = require('./provider.cjs');
 const {SourceService} = require('./source-service.cjs');
 const sourceService=new SourceService({app,utilityProcess});
 let sourceWindow;
@@ -20,7 +21,7 @@ function owner() { if (Date.now() >= unlockedUntil) throw Error('Unlock owner se
 function secureStorage() {
   if (!safeStorage.isEncryptionAvailable() || (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text')) throw Error('OS credential encryption is unavailable.');
 }
-function settings() { secureStorage(); if (!record.settings) throw Error('Owner must configure an API key first.'); return JSON.parse(safeStorage.decryptString(Buffer.from(record.settings, 'base64'))); }
+function settings() { secureStorage(); if (!record.settings) throw Error('Owner must configure an AI provider first.'); return JSON.parse(safeStorage.decryptString(Buffer.from(record.settings, 'base64'))); }
 function handle(name, fn) {
   ipcMain.handle(name, async (event, arg) => {
     if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame || event.senderFrame.url !== page) throw Error('Untrusted caller');
@@ -34,7 +35,7 @@ app.whenReady().then(() => {
   win.webContents.setWindowOpenHandler(() => ({action:'deny'}));
   win.webContents.on('will-navigate', e => e.preventDefault());
   win.on('blur', () => {unlockedUntil = 0;});
-  handle('status', () => ({initialized:!!record.password, configured:!!record.settings, unlocked:Date.now()<unlockedUntil, version:app.getVersion()}));
+  handle('status', () => {const config=record.settings?settings():null;return {initialized:!!record.password,configured:!!record.settings,unlocked:Date.now()<unlockedUntil,version:app.getVersion(),provider:config?.provider||'openai',model:config?.model};});
   handle('unlock', ({password}) => {
     if (Date.now()<retryAt) throw Error('Too many attempts. Wait one minute.');
     if (!record.password) {secureStorage(); save({...record,password:hashPassword(password)});}
@@ -48,9 +49,7 @@ app.whenReady().then(() => {
     if(busy) throw Error('A request is already running.');
     const config=settings(); busy=true;
     try {
-      const response=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${config.apiKey}`},body:JSON.stringify({model:config.model,messages:[{role:'user',content:text}],max_completion_tokens:2048}),signal:AbortSignal.timeout(90000)});
-      if(!response.ok) throw Error(`AI provider returned HTTP ${response.status}. Check your key, billing, and model access.`);
-      const data=await response.json(); const answer=data.choices?.[0]?.message?.content; if(typeof answer!=='string') throw Error('Provider returned no text.');return answer;
+      return await complete(config,text);
     } finally {busy=false;}
   });
   const services={projects:'http://127.0.0.1:10020',creative:'http://127.0.0.1:10040'};

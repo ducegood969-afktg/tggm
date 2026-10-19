@@ -1,6 +1,8 @@
 # TGG AI Ultra
 
-A Windows desktop workspace beside the existing TGG Next.js game control panel. Includes single-turn OpenAI chat, password-protected local owner settings, operating-system encrypted API-key storage, a built-in TGG Source workspace and shortcuts to Projects/creative services, and an NSIS installer/update pipeline.
+A Windows desktop workspace beside the existing TGG Next.js game control panel. Includes single-turn local Ollama or OpenAI chat, password-protected local owner settings, operating-system encrypted API-key storage, a built-in TGG Source workspace and shortcuts to Projects/creative services, and an NSIS installer/update pipeline.
+
+For chat without paid API calls, use [local Ollama setup](LOCAL-AI.md) in version 0.1.2. Ollama and a downloaded model are separate prerequisites; Source works without either provider.
 
 ## Start and test
 
@@ -21,7 +23,7 @@ node node_modules/electron/install.js
 npm test
 ```
 
-On a Windows development machine run `npm run prepare:git` then `npm start`, or use the installer. Create your owner password (12–256 characters), enter your OpenAI API key and an available model in Owner settings, save, and open AI workspace. Requests are independent and chats are not persisted. Messages leave the computer for the fixed OpenAI HTTPS endpoint; avoid sending secrets.
+On a Windows development machine run `npm run prepare:git` then `npm start`, or use the installer. Create your owner password (12–256 characters), enter your OpenAI API key and an available model in Owner settings, save, and open AI workspace. Requests are independent and chats are not persisted. OpenAI sends messages to its fixed HTTPS endpoint; the local Ollama option sends them to this computer. Avoid sending secrets.
 
 For a real Linux GUI smoke test on the Debian cloud host:
 
@@ -36,7 +38,7 @@ Setup installs a small rootless Xvfb/keyring environment using signed Debian rep
 
 **No-purchase route:** follow [FREE-RELEASE.md](FREE-RELEASE.md). `npm run dist:unsigned` builds on Windows without Microsoft signing or an Azure subscription. The separate **TGG AI Ultra free Windows preview** workflow tests the installer and provides downloadable artifacts with checksums. Unsigned builds use manual updates and may show Windows security warnings. TGGhub can host the downloads on an existing server; public hosting is not created automatically.
 
-`npm run dist:preview` produces an **unsigned engineering installer** at `dist-preview/TGG-AI-Ultra-Setup-0.1.1-x64.exe`. The Linux build uses electron-builder's native UninstallerReader through a custom packaging target, avoiding Wine's unavailable 32-bit execution. This adapter uses the pinned builder version, changes no installed dependency files, and is separate from production signing. It does not prove the installer runs on Windows. Windows acceptance must pass before distribution.
+`npm run dist:preview` produces an **unsigned engineering installer** at `dist-preview/TGG-AI-Ultra-Setup-0.1.2-x64.exe`. The Linux build uses electron-builder's native UninstallerReader through a custom packaging target, avoiding Wine's unavailable 32-bit execution. This adapter uses the pinned builder version, changes no installed dependency files, and is separate from production signing. It does not prove the installer runs on Windows. Windows acceptance must pass before distribution.
 
 `npm run dist:win` produces a **signed production installer** using Microsoft cloud signing. It requires the validated publisher and signing account settings; missing settings fail closed. See [WINDOWS-RELEASE.md](WINDOWS-RELEASE.md) for Azure OIDC configuration, required accounts, costs, the Windows workflow and secure publication steps. The workflow can also build/test an unsigned installer with `signed=false` before Azure setup. It uploads artifacts without publishing a release.
 

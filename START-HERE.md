@@ -25,3 +25,7 @@ Replace the placeholder; do not include angle brackets. The helper downloads an 
 Open the exact project folder in TGG Studio workspace. Use TGG Remote to review supported text and export a support bundle if you want to share it in chat. Check the bundle contents first. A Source snapshot is a separate local Git history copy; it does not automatically upload your project to GitHub. Binary assets, generated files and deletions are not mirrored.
 
 A local Codex workspace session, when supported by your installed Codex application, can work with local files/commands using that application's own permissions. This chat cannot start that session on your behalf, transfer its approval, or assume it exists.
+
+## Identify a flashing console window
+
+Double-click `Diagnose-TGG-Popup.vbs` once. It downloads a commit-pinned read-only watcher and runs it without a console for 90 seconds. The result is `Downloads\TGG-Popup-Diagnostic.json`. It samples process names, executable paths, parent/grandparent identities and timestamps, with an initial baseline of already running console-related programs. No command lines, environment values or file contents are collected, and no process or startup setting is changed. Inspect paths before sharing. Very short processes or exited parents can be missed; protected process paths can be blank. Standard-user Windows execution is still to be validated on the affected machine; Linux cannot reproduce its popups.

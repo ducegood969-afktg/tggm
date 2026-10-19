@@ -142,6 +142,14 @@ const os = require('node:os');
     assert.equal(await page.locator('#send').isVisible(),true);
     await page.screenshot({path:path.resolve(__dirname,'../test-results/desktop-compact.png')});
 
+    await application.evaluate(({session})=>{session.fromPartition('persist:tgg-browser').protocol.handle('https',()=>new Response('<!doctype html><title>Browser fixture</title><h1>TGG test website</h1>',{headers:{'content-type':'text/html'}}));});
+    const browserOpened=application.waitForEvent('window');await page.click('[data-service=browser]');const browser=await browserOpened;
+    await browser.waitForSelector('#address');await browser.fill('#address','https://example.com/');await browser.click('button[type=submit]');
+    await browser.waitForFunction(()=>document.querySelector('#state').textContent.includes('Website loaded'));
+    const browserIsolation=await application.evaluate(({BrowserWindow})=>{const window=BrowserWindow.getAllWindows().find(item=>item.getTitle()==='TGG Browser');const contents=window.contentView.children[0].webContents;return contents.executeJavaScript('({node:typeof require,tools:typeof window.tgg,title:document.title})');});
+    assert.deepEqual(browserIsolation,{node:'undefined',tools:'undefined',title:'Browser fixture'});
+    await browser.fill('#address','file:///etc/passwd');await browser.click('button[type=submit]');await browser.waitForFunction(()=>document.querySelector('#state').textContent.includes('HTTPS'));
+    await browser.screenshot({path:path.resolve(__dirname,'../test-results/browser.png')});await browser.close();
     assert.deepEqual(errors,[]);
     console.log(JSON.stringify({ok:true,checks:['real GUI','sandbox enabled','owner setup','OS encryption round trip','mocked chat rendered as text','owner lock','managed Source startup and repository creation','project review and real Source snapshot','support export','local diagnostics','app screenshot','Studio workspace edit/save','external-edit rejection','Studio companion with opt-in context','local model picker','review/reject/apply local edit proposal','separate explicit save of AI proposal'],backend:secure.backend}));
   } finally {

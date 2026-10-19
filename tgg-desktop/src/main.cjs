@@ -1,4 +1,4 @@
-const {app, BrowserWindow, ipcMain, safeStorage, shell, session, utilityProcess, dialog} = require('electron');
+const {app, BrowserWindow, ipcMain, safeStorage, shell, session, utilityProcess, dialog, WebContentsView} = require('electron');
 const {autoUpdater} = require('electron-updater');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,6 +19,7 @@ const {validateStudioPath,launchStudio}=require('./studio.cjs');
 const {complete} = require('./provider.cjs');
 const {SourceService} = require('./source-service.cjs');
 const sourceService=new SourceService({app,utilityProcess});
+let browserWindow;
 let sourceWindow,projectReview=null,selectingProject=false,snapshotBusy=false;
 let win, record = {}, unlockedUntil = 0, attempts = 0, retryAt = 0, busy = false;
 const page = pathToFileURL(path.join(__dirname, 'index.html')).href;
@@ -113,6 +114,7 @@ app.whenReady().then(() => {
   });
   const services={projects:'http://127.0.0.1:10020',creative:'http://127.0.0.1:10040'};
   handle('service', async name => {
+    if(name==='browser'){if(!browserWindow||browserWindow.isDestroyed())browserWindow=require('./browser.cjs').createBrowser({BrowserWindow,WebContentsView,session,ipcMain});browserWindow.show();browserWindow.focus();return true;}
     if(name==='studio'){if(!record.studio)throw Error('Unlock Owner settings and save the TGG Studio path first.');secureStorage();return launchStudio(safeStorage.decryptString(Buffer.from(record.studio,'base64')),{openPath:file=>shell.openPath(file)});}
     if(name==='source'){
       const url=await sourceService.start();

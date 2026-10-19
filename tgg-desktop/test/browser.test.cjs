@@ -1,0 +1,2 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {browserUrl}=require('../src/browser.cjs');
+test('TGG Browser accepts HTTPS websites and rejects local files, scripts and credentials',()=>{assert.equal(browserUrl('chatgpt.com'),'https://chatgpt.com/');assert.equal(browserUrl('https://example.com/path?q=hello'),'https://example.com/path?q=hello');for(const url of ['file:///etc/passwd','javascript:alert(1)','data:text/html,hello','http://example.com','https://user:pass@example.com','ftp://example.com'])assert.throws(()=>browserUrl(url));});

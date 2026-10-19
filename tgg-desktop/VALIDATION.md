@@ -49,3 +49,7 @@ Fourteen desktop tests pass. The managed Source integration test now creates suc
 ## 0.1.5 Obsidian redesign
 
 Fourteen desktop tests pass. Real sandboxed GUI smoke checks AI/Owner/Remote navigation, existing owner/provider behavior, local AI protocol, Source and support tools, New Chat and suggested prompts. Screenshots were inspected at 1160px and 760px window widths, with no horizontal body overflow at the compact size and a visible Send action. Native Windows 0.1.5 upgrade and visual acceptance remain to be checked on the owner laptop. The separate Studio executable was not modified.
+
+## 0.1.6 Studio workspace preview
+
+Fifteen desktop tests pass. Real sandboxed GUI checks exercised scoped project opening, file editing and actual save, optional-context companion chat with a mocked local response, stale-revision rejection and the inline unsaved-change dialog. The three-panel layout was inspected from a real app screenshot. Existing owner, Source, local AI and Remote smoke checks also pass. Windows 0.1.6 acceptance remains unverified; no claim is made that the original Studio UI was modified.

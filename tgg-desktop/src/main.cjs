@@ -5,6 +5,8 @@ const path = require('node:path');
 const {pathToFileURL} = require('node:url');
 const {hashPassword, verifyPassword, validateSettings} = require('./security.cjs');
 const {verifyWindowsSignature} = require('./update-security.cjs');
+const {Workspace}=require('./workspace.cjs');
+const workspace=new Workspace();
 const {diagnostics}=require('./remote-tools.cjs');
 const {supportBundle}=require('./remote-support.cjs');
 const {reviewProject,saveProject}=require('./project-snapshot.cjs');
@@ -49,6 +51,13 @@ app.whenReady().then(() => {
   handle('lock', () => {unlockedUntil=0; return true;});
   handle('configure', input => {owner(); secureStorage(); const config=validateSettings(input); save({...record,settings:safeStorage.encryptString(JSON.stringify(config)).toString('base64')});return true;});
   handle('studio-configure',async value=>{owner();secureStorage();const executable=await validateStudioPath(value);owner();save({...record,studio:safeStorage.encryptString(executable).toString('base64')});return true;});
+  handle('workspace-open',async()=>{
+    owner();if(selectingProject)throw Error('Close the active file dialog first.');
+    let selected;selectingProject=true;try{selected=await dialog.showOpenDialog(win,{title:'Open a folder in Studio workspace',properties:['openDirectory']});}finally{selectingProject=false;}
+    if(selected.canceled)return {cancelled:true};owner();return workspace.open(selected.filePaths[0]);
+  });
+  handle('workspace-read',name=>workspace.read(name));
+  handle('workspace-save',input=>{owner();if(selectingProject)throw Error('Close the active file dialog first.');return workspace.save(input);});
   handle('remote-diagnostics',async()=>{
     owner();return diagnostics({version:app.getVersion(),source:()=>sourceService.api('/v1/repos'),studio:record.studio?()=>{secureStorage();return validateStudioPath(safeStorage.decryptString(Buffer.from(record.studio,'base64')));}:null});
   });

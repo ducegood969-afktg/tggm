@@ -333,11 +333,11 @@ async function load(){
       ['Saved Events',String(events.length),events[0]?.created_at||'none',true],
       ['Snapshots',String(snaps.length),snaps[0]?.created_at||'none',true],
       ['Latest Save',d.latest_save?.manifest?.id||'NONE',d.latest_save?.manifest?.manifest_sha256||'no manifest',Boolean(d.latest_save?.manifest?.id)]
-    ].map(x=>`<div class="stat"><b>${esc(x[0])}</b><div class="${x[3]?'ok':'bad'}">${esc(x[1])}</div><div class="muted">${esc(x[2])}</div></div>`).join('');
-    document.getElementById('higgsfieldJobs').innerHTML=jobs.length?jobs.slice(0,12).map(j=>`<div class="item"><div class="row"><b>${esc(j.mode)} · ${esc(j.preset||'cinematic')}</b><span>${esc(j.status)} · ${esc(j.progress??0)}%</span></div><div class="muted">${esc(j.id)} · ${esc((j.prompt||'').slice(0,120))}</div></div>`).join(''):'<div class="item muted">No TGG Higgsfield jobs yet.</div>';
-    document.getElementById('events').innerHTML=events.length?events.slice(0,30).map(e=>`<div class="item"><div class="row"><b>${esc(e.title||e.type)}</b><span>${esc(e.status)} · ${esc(e.project_id)}</span></div><div class="muted">${esc(e.type)} · ${esc(e.source_service)} · ${esc(e.sha||e.source_id||e.id)} · ${esc(e.created_at)}</div></div>`).join(''):'<div class="item muted">No TGG saved events yet.</div>';
-    document.getElementById('assets').innerHTML=assets.length?assets.slice(0,16).map(a=>`<div class="item"><div class="row"><b>${esc(a.title||a.type)}</b><span>${esc(a.status)} · ${esc(a.project_id)}</span></div><div class="muted">${esc(a.type)} · ${esc(a.source_service)} · ${esc(a.source_id||a.id)}</div></div>`).join(''):'<div class="item muted">No saved TGG project assets yet.</div>';
-    document.getElementById('snapshots').innerHTML=snaps.length?snaps.map(s=>`<div class="item"><div class="row"><b>${esc(s.title)}</b><span>${esc(s.status)}</span></div><div class="muted">${esc(s.id)} · ${esc(s.created_at)}</div></div>`).join(''):'<div class="item muted">No snapshots yet.</div>';
+    ].map(x=>\`<div class="stat"><b>\${esc(x[0])}</b><div class="\${x[3]?'ok':'bad'}">\${esc(x[1])}</div><div class="muted">\${esc(x[2])}</div></div>\`).join('');
+    document.getElementById('higgsfieldJobs').innerHTML=jobs.length?jobs.slice(0,12).map(j=>\`<div class="item"><div class="row"><b>\${esc(j.mode)} · \${esc(j.preset||'cinematic')}</b><span>\${esc(j.status)} · \${esc(j.progress??0)}%</span></div><div class="muted">\${esc(j.id)} · \${esc((j.prompt||'').slice(0,120))}</div></div>\`).join(''):'<div class="item muted">No TGG Higgsfield jobs yet.</div>';
+    document.getElementById('events').innerHTML=events.length?events.slice(0,30).map(e=>\`<div class="item"><div class="row"><b>\${esc(e.title||e.type)}</b><span>\${esc(e.status)} · \${esc(e.project_id)}</span></div><div class="muted">\${esc(e.type)} · \${esc(e.source_service)} · \${esc(e.sha||e.source_id||e.id)} · \${esc(e.created_at)}</div></div>\`).join(''):'<div class="item muted">No TGG saved events yet.</div>';
+    document.getElementById('assets').innerHTML=assets.length?assets.slice(0,16).map(a=>\`<div class="item"><div class="row"><b>\${esc(a.title||a.type)}</b><span>\${esc(a.status)} · \${esc(a.project_id)}</span></div><div class="muted">\${esc(a.type)} · \${esc(a.source_service)} · \${esc(a.source_id||a.id)}</div></div>\`).join(''):'<div class="item muted">No saved TGG project assets yet.</div>';
+    document.getElementById('snapshots').innerHTML=snaps.length?snaps.map(s=>\`<div class="item"><div class="row"><b>\${esc(s.title)}</b><span>\${esc(s.status)}</span></div><div class="muted">\${esc(s.id)} · \${esc(s.created_at)}</div></div>\`).join(''):'<div class="item muted">No snapshots yet.</div>';
   }catch(e){document.getElementById('live').innerHTML='<div class="stat bad">'+esc(e.message)+'</div>'}
 }
 async function createHiggsfieldJob(){
@@ -453,6 +453,17 @@ http.createServer(async(req,res)=>{
     if(req.method==='POST'&&url.pathname==='/v1/snapshots')return send(res,201,{ok:true,snapshot:await createSnapshot(await body(req))});
     const snap=url.pathname.match(/^\/v1\/snapshots\/([^/]+)$/);
     if(req.method==='GET'&&snap)return send(res,200,{ok:true,snapshot:await getSnapshot(decodeURIComponent(snap[1]))});
+    const projectEvents=url.pathname.match(/^\/v1\/projects\/([^/]+)\/events$/);
+    if(req.method==='GET'&&projectEvents)return send(res,200,{ok:true,events:await listEvents({
+      project_id:decodeURIComponent(projectEvents[1]),
+      type:url.searchParams.get('type')||null,
+      source_service:url.searchParams.get('source_service')||null,
+      limit:url.searchParams.get('limit')||100
+    })});
+    if(req.method==='POST'&&projectEvents){
+      const payload=await body(req);
+      return send(res,201,{ok:true,event:await recordEvent({...payload,project_id:decodeURIComponent(projectEvents[1])})});
+    }
     const projectAssets=url.pathname.match(/^\/v1\/projects\/([^/]+)\/assets$/);
     if(req.method==='GET'&&projectAssets)return send(res,200,{ok:true,assets:await listAssets({
       project_id:decodeURIComponent(projectAssets[1]),

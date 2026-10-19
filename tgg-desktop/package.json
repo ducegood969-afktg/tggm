@@ -1,0 +1,84 @@
+{
+  "name": "tgg-ai-ultra",
+  "version": "0.1.1",
+  "private": true,
+  "description": "TGG AI Ultra desktop workspace",
+  "author": "TGG",
+  "license": "UNLICENSED",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "dist:win": "node scripts/release.cjs",
+    "pack": "electron-builder --dir",
+    "smoke": "node scripts/smoke.cjs",
+    "smoke:cloud": "bash scripts/smoke-cloud.sh",
+    "dist:preview": "node scripts/build-preview.cjs",
+    "check:provider": "node scripts/provider-check.cjs",
+    "prepare:git": "node scripts/prepare-git.cjs"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
+  },
+  "devDependencies": {
+    "electron": "42.11.15",
+    "electron-builder": "26.15.3",
+    "playwright": "1.61.1"
+  },
+  "build": {
+    "appId": "com.tgg.aiultra",
+    "productName": "TGG AI Ultra",
+    "files": [
+      "src/**/*"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "verifyUpdateCodeSignature": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "tggm803sc",
+        "repo": "tggm"
+      }
+    ],
+    "artifactName": "TGG-AI-Ultra-Setup-${version}-${arch}.${ext}",
+    "extraResources": [
+      {
+        "from": "../tgg-source",
+        "to": "tgg-source",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "vendor/mingit",
+        "to": "mingit",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "THIRD-PARTY.md",
+        "to": "THIRD-PARTY.md"
+      }
+    ]
+  },
+  "overrides": {
+    "@electron/get": "5.1.0"
+  }
+}

@@ -1,0 +1,4 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');
+const {hashPassword,verifyPassword,validateSettings}=require('../src/security.cjs');
+test('owner password is salted and rejects incorrect credentials',()=>{const p='correct horse battery staple';const a=hashPassword(p);assert.notEqual(a.hash,hashPassword(p).hash);assert.equal(verifyPassword(p,a),true);assert.equal(verifyPassword('wrong',a),false);assert.equal(verifyPassword(null,a),false);assert.throws(()=>hashPassword('short'));});
+test('provider settings reject malformed model and empty key',()=>{assert.throws(()=>validateSettings({apiKey:'',model:'gpt-4.1-mini'}));assert.throws(()=>validateSettings({apiKey:'test',model:'../bad'}));assert.deepEqual(validateSettings({apiKey:' test ',model:'gpt-4.1-mini'}),{apiKey:'test',model:'gpt-4.1-mini'});});

@@ -36,7 +36,7 @@ dialog{border:1px solid #34405a;border-radius:16px;background:#111722;color:#fff
 <div class="wrap">
   <div class="layout">
     <aside class="card sidebar">
-      <div class="spread row"><h3 style="margin:0">Repositories</h3><span id="repoCount" class="pill">0</span></div>
+      <div class="spread row"><h3 style="margin:0">Repositories</h3><span id="repoCount" class="pill">—</span></div>
       <div class="row" style="margin:12px 0"><input id="newRepo" style="min-width:0;flex:1" placeholder="new-repository"><button class="primary" onclick="createRepo()">Create</button></div>
       <details style="margin:10px 0 14px"><summary class="small muted" style="cursor:pointer">Import / migrate repository</summary>
         <input id="importRepoName" style="width:100%;margin-top:10px" placeholder="tgg-repository">
@@ -79,14 +79,25 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 async function copyText(text){
   try{await navigator.clipboard.writeText(String(text||''));alert('Copied to clipboard')}catch{prompt('Copy this value',String(text||''))}
 }
-async function api(url,options){const r=await fetch(url,options);const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false)throw Error(j.error||('HTTP '+r.status));return j}
+async function api(url,options){
+  if(location.protocol==='file:')throw Error('TGG Source needs its running server. Start npm run tgg:source and open the server page; opening index.html directly does not run the repository API.');
+  const endpoint=new URL(url.replace(/^\//,''),new URL('.',location.href));
+  const r=await fetch(endpoint,options);
+  const j=await r.json().catch(()=>null);
+  if(r.status===404&&j?.ok===false&&j.error&&j.error!=='not_found')throw Error(j.error);
+  if(r.status===404)throw Error('Repository API not found at '+endpoint.pathname+'. Start the TGG Source server (npm run tgg:source). Static hosting cannot run its API. For a reverse proxy, forward this page and its API routes to the same Source service, with a trailing slash on the mount URL.');
+  if(!r.ok||j?.ok===false)throw Error(j?.error||('HTTP '+r.status));
+  if(!j||j.ok!==true)throw Error('This page is not connected to the TGG Source API: '+endpoint.pathname+' returned an unexpected response. Check the server or reverse-proxy routing.');
+  return j;
+}
 async function refresh(){
   try{
     const j=await api('/v1/repos');
+    if(!Array.isArray(j.repositories))throw Error('The Source repository API returned an invalid repository list. Check the server or reverse-proxy routing.');
     state.repos=j.repositories||[];$('repoCount').textContent=state.repos.length;
     $('repos').innerHTML=state.repos.length?state.repos.map(r=>`<button class="repo ${state.repo===r.name?'active':''}" onclick="openRepo('${esc(r.name)}')"><strong>${esc(r.name)}</strong><span class="muted small">${esc(r.branch||'main')} · ${esc((r.head||'').slice(0,10)||'no commits')}</span></button>`).join(''):'<span class="muted">No repositories yet.</span>';
     if(state.repo&&!state.repos.some(r=>r.name===state.repo)){state.repo=null;$('repoView').hidden=true;$('welcome').hidden=false}
-  }catch(e){$('repos').innerHTML='<span class="error">'+esc(e.message)+'</span>'}
+  }catch(e){$('repoCount').textContent='Unavailable';$('repos').innerHTML='<span class="error" role="alert">'+esc(e.message)+'</span>'}
 }
 async function createRepo(){
   const name=$('newRepo').value.trim();if(!name)return;
@@ -194,6 +205,12 @@ async function renderPanel(){
           '<span class="pill '+(r.state==='published'?'ok':'')+'">'+esc(r.state)+'</span>'
         )).join('')||item('No TGG releases yet')}</div>
         <h3>Tags</h3>
+        <div class="row">
+          <input id="tagName" placeholder="Tag name" aria-label="Tag name">
+          <input id="tagRef" value="HEAD" aria-label="Tag ref">
+          <input id="tagMessage" placeholder="Tag message (optional)" aria-label="Tag message">
+          <button onclick="createTag()">Create tag</button>
+        </div>
         <div class="list">${(tags.tags||[]).map(t=>item(t.tag,(t.sha||'').slice(0,12)+' · '+(t.date||''))).join('')||item('No tags yet')}</div>
       `;
     }

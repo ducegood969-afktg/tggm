@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {timingSafeEqual} from 'node:crypto';
 import {initStore,listRepos,createRepo,getRepo,branches,createBranch,log,tree,readFile,commitFiles,compareRefs,mergeBranch,searchCode,tags,createTag,commitDetails,exportRepoBundle,readRepoBundle,restoreRepoBundle,importRepo} from './repo-store.mjs';
 import {createIssue,listIssues,getIssue,updateIssue,createPull,listPulls,getPull,updatePull,markPullMerged,createRelease,listReleases,getRelease,updateRelease} from './collaboration-store.mjs';
 import {getRepoPolicy,updateRepoPolicy} from './repo-policy.mjs';
@@ -9,8 +10,9 @@ import {createCheckRun,listCheckRuns,checksPass} from './check-store.mjs';
 import {handleGitHttp} from './git-http.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url));
-const PORT=Number(process.env.TGG_SOURCE_PORT||10030);
+let PORT=Number(process.env.TGG_SOURCE_PORT||10030);
 const HOST=process.env.TGG_SOURCE_HOST||'0.0.0.0';
+const DESKTOP_SESSION=process.env.TGG_SOURCE_DESKTOP_SESSION||'';
 const TGG_PROJECTS_URL=String(process.env.TGG_PROJECTS_URL||'http://127.0.0.1:10020').replace(/\/$/,'');
 const TGG_HIGGSFIELD_URL=String(process.env.TGG_HIGGSFIELD_URL||'http://127.0.0.1:10040').replace(/\/$/,'');
 
@@ -210,6 +212,14 @@ async function ciReceipt(){
 await initStore();
 const server=http.createServer(async(req,res)=>{
   try{
+    if(DESKTOP_SESSION){
+      const expectedHost='127.0.0.1:'+PORT;
+      if(req.headers.host!==expectedHost||req.headers.origin&&req.headers.origin!=='http://'+expectedHost)return send(res,403,{ok:false,error:'desktop_session_required'});
+      const cookie=String(req.headers.cookie||'').split(';').map(value=>value.trim()).find(value=>value.startsWith('tgg_source_session='));
+      const supplied=Buffer.from(cookie?.slice('tgg_source_session='.length)||'');
+      const expected=Buffer.from(DESKTOP_SESSION);
+      if(supplied.length!==expected.length||!timingSafeEqual(supplied,expected))return send(res,403,{ok:false,error:'desktop_session_required'});
+    }
     const url=new URL(req.url,'http://localhost');
     if(url.pathname.startsWith('/git/'))return handleGitHttp(req,res,url);
     if(req.method==='GET'&&url.pathname==='/health')return send(res,200,{
@@ -227,7 +237,7 @@ const server=http.createServer(async(req,res)=>{
     });
     if(req.method==='GET'&&url.pathname==='/.well-known/tgg-source.json')return send(res,200,await appManifest());
     if(req.method==='GET'&&url.pathname==='/openapi.json')return send(res,200,JSON.parse(await fs.readFile(path.join(ROOT,'openapi.json'),'utf8')));
-    if(req.method==='GET'&&url.pathname==='/')return send(res,200,await fs.readFile(path.join(ROOT,'index.html'),'utf8'),'text/html; charset=utf-8');
+    if(req.method==='GET'&&(url.pathname==='/'||url.pathname==='/index.html'))return send(res,200,await fs.readFile(path.join(ROOT,'index.html'),'utf8'),'text/html; charset=utf-8');
     if(req.method==='GET'&&url.pathname==='/v1/repos')return send(res,200,{ok:true,repositories:(await listRepos()).map(repo=>repoWithUrls(req,repo))});
     if(req.method==='GET'&&url.pathname==='/v1/checks')return send(res,200,{ok:true,receipt:await ciReceipt()});
     if(req.method==='GET'&&url.pathname==='/v1/tgg-projects/dashboard'){
@@ -430,4 +440,10 @@ const server=http.createServer(async(req,res)=>{
     send(res,404,{ok:false,error:'not_found'});
   }catch(error){fail(res,error)}
 });
-server.listen(PORT,HOST,()=>console.log(JSON.stringify({ok:true,service:'tgg-source',url:'http://'+HOST+':'+PORT})));
+server.listen(PORT,HOST,()=>{
+  PORT=server.address().port;
+  console.log(JSON.stringify({ok:true,service:'tgg-source',url:'http://'+HOST+':'+PORT}));
+  const ready={type:'tgg-source-ready',port:PORT};
+  process.parentPort?.postMessage(ready);
+  if(process.send)process.send(ready);
+});

@@ -8,6 +8,10 @@ const {verifyWindowsSignature} = require('./update-security.cjs');
 const {listLocalModels,proposeEdit}=require('./local-coder.cjs');
 const {Workspace}=require('./workspace.cjs');
 const workspace=new Workspace();
+const {ProjectLibrary}=require('./project-library.cjs');
+function library(){secureStorage();return new ProjectLibrary(record.library?JSON.parse(safeStorage.decryptString(Buffer.from(record.library,'base64'))):[]);}
+function persistLibrary(value){secureStorage();save({...record,library:safeStorage.encryptString(JSON.stringify(value.entries)).toString('base64')});}
+function rememberProject(folder,name){const value=library();value.remember(folder,name);persistLibrary(value);}
 const {diagnostics}=require('./remote-tools.cjs');
 const {supportBundle}=require('./remote-support.cjs');
 const {reviewProject,saveProject}=require('./project-snapshot.cjs');
@@ -61,9 +65,12 @@ app.whenReady().then(() => {
   handle('workspace-open',async()=>{
     owner();if(selectingProject)throw Error('Close the active file dialog first.');
     let selected;selectingProject=true;try{selected=await dialog.showOpenDialog(win,{title:'Open a folder in Studio workspace',properties:['openDirectory']});}finally{selectingProject=false;}
-    if(selected.canceled)return {cancelled:true};owner();return workspace.open(selected.filePaths[0]);
+    if(selected.canceled)return {cancelled:true};owner();const result=await workspace.open(selected.filePaths[0]);rememberProject(result.folder);return result;
   });
-  handle('workspace-read',name=>workspace.read(name));
+  handle('workspace-read',async name=>{owner();const result=await workspace.read(name);rememberProject(workspace.root,name);return result;});
+  handle('library-list',()=>{owner();return library().entries;});
+  handle('library-forget',id=>{owner();const value=library();value.forget(id);persistLibrary(value);return true;});
+  handle('library-open',async id=>{owner();if(selectingProject)throw Error('Close the active file dialog first.');const entry=library().get(id);const result=await workspace.open(entry.folder);owner();rememberProject(result.folder);return result;});
   handle('workspace-save',input=>{owner();if(selectingProject)throw Error('Close the active file dialog first.');return workspace.save(input);});
   handle('remote-diagnostics',async()=>{
     owner();return diagnostics({version:app.getVersion(),source:()=>sourceService.api('/v1/repos'),studio:record.studio?()=>{secureStorage();return validateStudioPath(safeStorage.decryptString(Buffer.from(record.studio,'base64')));}:null});

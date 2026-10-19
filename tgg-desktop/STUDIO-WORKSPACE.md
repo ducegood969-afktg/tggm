@@ -25,3 +25,7 @@ Fifteen desktop tests pass. Tests cover scoped reads/writes, excluded private fi
 ### Review a snapshot of the open project
 
 After saving editor changes, choose **Review Source snapshot** in Studio. TGG Remote reviews the currently opened folder without another folder picker. Inspect the included files, then choose **Save reviewed text to Source**. The shortcut does not save unsaved editor text, create a commit automatically, or upload anything. The review uses current disk contents and retains the normal owner unlock and review expiry requirements.
+
+### Home dashboard (0.1.10)
+
+TGG opens on Home. Unlock Owner settings to view recent projects, then use Home to reopen a project or one of its recent files. Opened folders and files are remembered in the existing OS-encrypted owner store: up to 12 projects and five files per project. The dashboard lists names and paths, not file contents. Its Source action opens the existing local Source window. Missing or moved projects report an error and can be forgotten; forgetting never deletes project files or Source history. Existing installations start with an empty library until a folder is opened in this version. Unsaved-editor discard confirmation still applies when reopening a project.

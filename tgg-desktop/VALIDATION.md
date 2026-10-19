@@ -1,5 +1,12 @@
 # Validation and remaining external requirements
 
+## 0.1.16 agent format compatibility fix
+
+The owner reported a first-step invalid-tool-call failure with local qwen2.5-coder:7b in 0.1.15. The raw model response was not captured. Code inspection found that the previous Ollama schema permitted irrelevant optional fields that the exact-key validator rejected. Each grammar branch now requires precisely its tool arguments. Explicit tool examples and up to two bounded format corrections handle recoverable output errors without executing the invalid response. Unsupported tools remain immediate failures. Corrections count toward the existing ten-step limit.
+
+A regression test covers irrelevant fields, a subsequent real workspace read, exhausted corrections and immediate unsupported-tool rejection. The GUI fixture now starts with an invalid extra-field response before completing its existing agent/recovery workflow. All 38 desktop tests pass with zero skipped. The real sandboxed Electron GUI workflow also passes with the invalid-response fixture, reviewed edits, checks, Stop and recovery. Actual inference with the owner’s model still requires target-machine acceptance; mocked responses establish application behavior rather than model compatibility.
+
+
 ## 0.1.15 combined desktop update (2026-10-19)
 
 Current checks supersede historical counts below. All 37 desktop tests pass (zero skipped), including schema-bounded local agent proposals, rejection of unsupported tools/paths/stale edits, check review expiry and manifest revisions, cancellation/timeouts, encrypted edit undo with CRLF/BOM preservation, owner-data fallback and blocked corrupt resets, real Git bundle clone/fsck, fixed-folder installer hash verification and Unreal generated-directory exclusions. Source syntax checks pass.

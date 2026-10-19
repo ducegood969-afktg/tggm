@@ -2,7 +2,7 @@
 
 Open a project in Studio workspace, unlock Owner settings, then choose Local agent. The agent uses the selected local Ollama model and the shared AI Ultra owner settings. It does not connect this cloud chat or browser websites to your computer.
 
-The schema allows listing reviewed project files, reading them, proposing exact text replacements, requesting a check, and finishing. Paths must belong to the selected workspace. One run permits at most ten tool steps and five changed files; model reads are bounded. Invalid tools, ambiguous matches, stale files and malformed responses fail closed. Model requests go to the fixed local Ollama endpoint without an API key.
+The schema allows listing reviewed project files, reading them, proposing exact text replacements, requesting a check, and finishing. Paths must belong to the selected workspace. One run permits at most ten tool steps and five changed files; model reads are bounded. Invalid tools, ambiguous matches and stale files fail closed. Version 0.1.16 aligns each tool schema with its exact validator keys and allows two bounded format corrections for malformed model responses without executing them. Corrections count toward the ten-step limit; unsupported tools stop immediately. Model requests go to the fixed local Ollama endpoint without an API key.
 
 Edits appear as current/proposed text. Applying a file explicitly writes it to disk and records an encrypted recovery copy first. Each file is approved separately; a group is not an atomic transaction. Save any editor changes before starting. No arbitrary shell or mouse/keyboard tool is exposed.
 

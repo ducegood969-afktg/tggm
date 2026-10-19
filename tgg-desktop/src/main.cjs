@@ -73,9 +73,9 @@ app.whenReady().then(() => {
     let selected;selectingProject=true;try{selected=await dialog.showSaveDialog(win,{title:'Save a screenshot of this TGG AI Ultra window',defaultPath:'TGG-Remote-app.png',filters:[{name:'PNG image',extensions:['png']}]});}finally{selectingProject=false;}
     if(selected.canceled)return {cancelled:true};owner();const image=await win.webContents.capturePage();owner();fs.writeFileSync(selected.filePath,image.toPNG(),{mode:0o600});return {saved:true};
   });
-  handle('project-review',async()=>{
+  handle('project-review',async mode=>{
     owner();if(snapshotBusy||selectingProject)throw Error('A project operation is already running.');projectReview=null;
-    let selected;selectingProject=true;try{selected=await dialog.showOpenDialog(win,{title:'Choose the Studio project folder to review',properties:['openDirectory']});}finally{selectingProject=false;}
+    let selected;if(mode==='workspace'){if(!workspace.root)throw Error('Open a Studio workspace folder first.');selected={canceled:false,filePaths:[workspace.root]};}else{selectingProject=true;try{selected=await dialog.showOpenDialog(win,{title:'Choose the Studio project folder to review',properties:['openDirectory']});}finally{selectingProject=false;}}
     if(selected.canceled)return {cancelled:true};owner();snapshotBusy=true;
     try{const snapshot=await reviewProject(selected.filePaths[0]);owner();const id=require('node:crypto').randomUUID();projectReview={id,snapshot,expires:Date.now()+300000};return {id,folder:snapshot.root,files:snapshot.files.map(f=>f.path),skipped:snapshot.skipped,bytes:snapshot.bytes};}finally{snapshotBusy=false;}
   });

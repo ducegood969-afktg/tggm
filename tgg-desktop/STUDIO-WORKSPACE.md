@@ -21,3 +21,7 @@ Use TGG Remote to review this project folder and save its text snapshot to Sourc
 ## Validation
 
 Fifteen desktop tests pass. Tests cover scoped reads/writes, excluded private files, CRLF preservation, rejection of stale revisions and oversized content, linked-file rejection and cleanup of temporary saves. The real sandboxed Linux GUI smoke opens a temporary project, saves text, obtains a mocked local companion answer with editor context, and verifies that an external edit is not overwritten. Native folder selections are stubbed for deterministic tests. Windows native pickers, installation/upgrade of 0.1.6 and use with the owner's project remain acceptance checks.
+
+### Review a snapshot of the open project
+
+After saving editor changes, choose **Review Source snapshot** in Studio. TGG Remote reviews the currently opened folder without another folder picker. Inspect the included files, then choose **Save reviewed text to Source**. The shortcut does not save unsaved editor text, create a commit automatically, or upload anything. The review uses current disk contents and retains the normal owner unlock and review expiry requirements.

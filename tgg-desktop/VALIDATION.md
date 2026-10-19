@@ -57,3 +57,7 @@ Fifteen desktop tests pass. Real sandboxed GUI checks exercised scoped project o
 ## 0.1.7 local edit proposals
 
 Eighteen desktop tests pass. The real sandboxed GUI smoke additionally exercises installed-model selection, local edit review/reject, applying text without a file write, and separately saving that buffer. AI completions are mocked in the cloud; real target-model proposal quality and Windows 0.1.7 upgrade remain unverified. Existing local model inference was previously demonstrated by the owner in 0.1.2 and later screenshots. No claim is made that a new TGG foundation model or remote-control agent was trained or deployed.
+
+## 0.1.8 proposal truncation fix
+
+Twenty desktop tests pass, including a regression reproducing the owner screenshot: a full README cannot be replaced by only the requested Overview sentence. A valid single-sentence edit preserves every other byte. Missing, ambiguous, overlapping and unchanged edits are rejected. Actual local-model reliability and Windows 0.1.8 acceptance remain separate checks.

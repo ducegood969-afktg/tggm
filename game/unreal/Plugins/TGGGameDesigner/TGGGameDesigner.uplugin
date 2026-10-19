@@ -1,0 +1,32 @@
+{
+  "FileVersion": 3,
+  "Version": 2,
+  "VersionName": "0.2.0",
+  "FriendlyName": "TGG Game Designer",
+  "Description": "Standalone delivery and reviewed business ownership prototype; Unreal compilation required.",
+  "Category": "TGG",
+  "CreatedBy": "TGG",
+  "CanContainContent": true,
+  "EnabledByDefault": true,
+  "Modules": [
+    {
+      "Name": "TGGGameDesigner",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "TGGGameDesignerEditor",
+      "Type": "Editor",
+      "LoadingPhase": "PostEngineInit"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "PythonScriptPlugin",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    }
+  ]
+}

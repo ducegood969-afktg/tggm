@@ -5,6 +5,7 @@ const path = require('node:path');
 const {pathToFileURL} = require('node:url');
 const {hashPassword, verifyPassword, validateSettings} = require('./security.cjs');
 const {verifyWindowsSignature} = require('./update-security.cjs');
+const {listLocalModels,proposeEdit}=require('./local-coder.cjs');
 const {Workspace}=require('./workspace.cjs');
 const workspace=new Workspace();
 const {diagnostics}=require('./remote-tools.cjs');
@@ -41,7 +42,7 @@ app.whenReady().then(() => {
   win.webContents.setWindowOpenHandler(() => ({action:'deny'}));
   win.webContents.on('will-navigate', e => e.preventDefault());
   win.on('blur', () => {if(!selectingProject)unlockedUntil = 0;});
-  handle('status', () => {const config=record.settings?settings():null;return {initialized:!!record.password,configured:!!record.settings,unlocked:Date.now()<unlockedUntil,version:app.getVersion(),provider:config?.provider||'openai',model:config?.model,studioPath:record.studio?safeStorage.decryptString(Buffer.from(record.studio,'base64')):path.join(require('node:os').homedir(),'AppData','Local','Programs','TGG Studio','TGG_Studio.exe')};});
+  handle('status', () => {const config=record.settings?settings():null;return {initialized:!!record.password,configured:!!record.settings,unlocked:Date.now()<unlockedUntil,version:app.getVersion(),provider:config?.provider||(config?'openai':'ollama'),model:config?.model,studioPath:record.studio?safeStorage.decryptString(Buffer.from(record.studio,'base64')):path.join(require('node:os').homedir(),'AppData','Local','Programs','TGG Studio','TGG_Studio.exe')};});
   handle('unlock', ({password}) => {
     if (Date.now()<retryAt) throw Error('Too many attempts. Wait one minute.');
     if (!record.password) {secureStorage(); save({...record,password:hashPassword(password)});}
@@ -51,6 +52,12 @@ app.whenReady().then(() => {
   handle('lock', () => {unlockedUntil=0; return true;});
   handle('configure', input => {owner(); secureStorage(); const config=validateSettings(input); save({...record,settings:safeStorage.encryptString(JSON.stringify(config)).toString('base64')});return true;});
   handle('studio-configure',async value=>{owner();secureStorage();const executable=await validateStudioPath(value);owner();save({...record,studio:safeStorage.encryptString(executable).toString('base64')});return true;});
+  handle('local-models',()=>listLocalModels());
+  handle('workspace-propose',async input=>{
+    owner();if(!input||busy)throw Error('Wait for the current AI request to finish.');
+    const current=await workspace.read(input.path);if(current.hash!==input.expectedHash)throw Error('This file changed on disk. Reopen it before requesting an edit.');
+    const config=settings();busy=true;try{return {path:input.path,content:await proposeEdit(config,{path:input.path,content:input.content,instructions:input.instructions})};}finally{busy=false;}
+  });
   handle('workspace-open',async()=>{
     owner();if(selectingProject)throw Error('Close the active file dialog first.');
     let selected;selectingProject=true;try{selected=await dialog.showOpenDialog(win,{title:'Open a folder in Studio workspace',properties:['openDirectory']});}finally{selectingProject=false;}

@@ -53,3 +53,7 @@ Fourteen desktop tests pass. Real sandboxed GUI smoke checks AI/Owner/Remote nav
 ## 0.1.6 Studio workspace preview
 
 Fifteen desktop tests pass. Real sandboxed GUI checks exercised scoped project opening, file editing and actual save, optional-context companion chat with a mocked local response, stale-revision rejection and the inline unsaved-change dialog. The three-panel layout was inspected from a real app screenshot. Existing owner, Source, local AI and Remote smoke checks also pass. Windows 0.1.6 acceptance remains unverified; no claim is made that the original Studio UI was modified.
+
+## 0.1.7 local edit proposals
+
+Eighteen desktop tests pass. The real sandboxed GUI smoke additionally exercises installed-model selection, local edit review/reject, applying text without a file write, and separately saving that buffer. AI completions are mocked in the cloud; real target-model proposal quality and Windows 0.1.7 upgrade remain unverified. Existing local model inference was previously demonstrated by the owner in 0.1.2 and later screenshots. No claim is made that a new TGG foundation model or remote-control agent was trained or deployed.

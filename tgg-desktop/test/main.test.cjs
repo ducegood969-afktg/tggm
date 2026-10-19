@@ -9,14 +9,15 @@ test('desktop owner, IPC boundary, encrypted settings, provider request and fail
  try{
  require('../src/main.cjs');await new Promise(resolve=>setImmediate(resolve));
  const invoke=(name,arg,event={sender:window.webContents,senderFrame:frame})=>handlers[name](event,arg);
+ assert.equal((await invoke('status')).data.provider,'ollama');
  assert.equal((await invoke('configure',{apiKey:'test',model:'gpt-4.1-mini'})).ok,false);
- for(const name of ['workspace-open','workspace-save','project-review','project-save','remote-export','remote-diagnostics','remote-screenshot'])assert.match((await invoke(name,'unknown')).error,/Unlock/);
+ for(const name of ['workspace-propose','workspace-open','workspace-save','project-review','project-save','remote-export','remote-diagnostics','remote-screenshot'])assert.match((await invoke(name,'unknown')).error,/Unlock/);
  assert.match((await invoke('studio-configure','C:\\TGG Studio\\TGG_Studio.exe')).error,/Unlock/);
  assert.equal((await invoke('unlock',{password:'a secure owner password'})).ok,true);
  assert.equal((await invoke('configure',{apiKey:'test',model:'gpt-4.1-mini'})).ok,true);
  assert.equal(JSON.parse(fs.readFileSync(path.join(root,'owner.json'))).settings.includes('test'),false);
  await assert.rejects(()=>invoke('status',null,{sender:{},senderFrame:frame}),/Untrusted/);
- global.fetch=async(url,options)=>{assert.equal(url,'https://api.openai.com/v1/chat/completions');assert.equal(options.headers.Authorization,'Bearer test');assert.equal(JSON.parse(options.body).messages[0].content,'Hello');return {ok:true,json:async()=>({choices:[{message:{content:'Hello from provider'}}]})};};
+ global.fetch=async(url,options)=>{assert.equal(url,'https://api.openai.com/v1/chat/completions');assert.equal(options.headers.Authorization,'Bearer test');assert.equal(JSON.parse(options.body).messages.find(message=>message.role==='user').content,'Hello');return {ok:true,json:async()=>({choices:[{message:{content:'Hello from provider'}}]})};};
  assert.deepEqual(await invoke('chat','Hello'),{ok:true,data:'Hello from provider'});
  assert.equal((await invoke('updates')).ok,false);
  await invoke('lock');assert.equal((await invoke('configure',{apiKey:'changed',model:'gpt-4.1-mini'})).ok,false);

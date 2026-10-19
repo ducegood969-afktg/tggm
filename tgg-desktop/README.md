@@ -38,7 +38,7 @@ Setup installs a small rootless Xvfb/keyring environment using signed Debian rep
 
 **No-purchase route:** follow [FREE-RELEASE.md](FREE-RELEASE.md). `npm run dist:unsigned` builds on Windows without Microsoft signing or an Azure subscription. The separate **TGG AI Ultra free Windows preview** workflow tests the installer and provides downloadable artifacts with checksums. Unsigned builds use manual updates and may show Windows security warnings. TGGhub can host the downloads on an existing server; public hosting is not created automatically.
 
-`npm run dist:preview` produces an **unsigned engineering installer** at `dist-preview/TGG-AI-Ultra-Setup-0.1.6-x64.exe`. The Linux build uses electron-builder's native UninstallerReader through a custom packaging target, avoiding Wine's unavailable 32-bit execution. This adapter uses the pinned builder version, changes no installed dependency files, and is separate from production signing. It does not prove the installer runs on Windows. Windows acceptance must pass before distribution.
+`npm run dist:preview` produces an **unsigned engineering installer** at `dist-preview/TGG-AI-Ultra-Setup-0.1.7-x64.exe`. The Linux build uses electron-builder's native UninstallerReader through a custom packaging target, avoiding Wine's unavailable 32-bit execution. This adapter uses the pinned builder version, changes no installed dependency files, and is separate from production signing. It does not prove the installer runs on Windows. Windows acceptance must pass before distribution.
 
 `npm run dist:win` produces a **signed production installer** using Microsoft cloud signing. It requires the validated publisher and signing account settings; missing settings fail closed. See [WINDOWS-RELEASE.md](WINDOWS-RELEASE.md) for Azure OIDC configuration, required accounts, costs, the Windows workflow and secure publication steps. The workflow can also build/test an unsigned installer with `signed=false` before Azure setup. It uploads artifacts without publishing a release.
 
@@ -73,3 +73,7 @@ The desktop app now uses a charcoal/mint visual system, compact navigation, sepa
 ## Integrated Studio workspace in 0.1.6
 
 [STUDIO-WORKSPACE.md](STUDIO-WORKSPACE.md) describes the new Obsidian file explorer, existing-text-file editor and optional-context AI companion. Native folder selection scopes file access; explicit saves require owner unlock and reject detected external edits. The existing Studio executable remains available as External Studio. This preview does not create files, execute commands or automatically sync projects.
+
+## Local coding companion in 0.1.7
+
+[LOCAL-CODER.md](LOCAL-CODER.md) describes installed Ollama model discovery and reviewed single-file edit proposals. Generation is local-only; applying a proposal changes only the editor buffer and writing it still requires explicit Save file. Hosted Codex access is not required to use this feature. There is no automatic command execution or unattended cloud-to-laptop connection.

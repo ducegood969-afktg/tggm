@@ -1,6 +1,14 @@
-# TGG Game Designer 0.2.0 — source candidate
+# TGG Game Designer 0.2.1 — source candidate
 
 Based on the owner's uploaded runtime/editor source and plugin descriptor from 2026-10-19. This is a source update for the existing plugin at D:\TGG\Projects\TGGWorld\Plugins\TGGGameDesigner, not a complete game or compiled plugin. Desktop AI Ultra remains 0.1.16.
+
+## HUD connection in 0.2.1
+
+The owner verified the 0.2.0 plugin compiled and installed on Unreal 5.8; Play showed delivery complete and $100. That screenshot showed only debug text. The uploaded DefaultEngine.ini contains Android file-server settings and no EngineSettings.GameMapsSettings section; the GameMode may be supplied by the map. DefaultInput.ini uses Enhanced Input. These uploaded settings are not overwritten or committed, and no pawn or input classes are changed.
+
+The mission now waits for the local controller's existing HUD. When Enable Mission HUD is true (default), it replaces exactly the generic AHUD class with TGGWorldHUD. It leaves custom HUD classes and intentionally absent HUDs alone and logs a custom-HUD diagnostic once. The hook runs during Tick so controller creation or replacement after BeginPlay is handled. Once the TGG panel exists, the mission stops adding its duplicate debug text. A custom HUD can be integrated explicitly by selecting TGGWorldHUD as HUD Class in that active GameMode; its asset path is not guessed.
+
+After the 0.2.1 build/install, Play should show the mint TGG WORLD panel with cash and objective. Stop/Play should retain $100 for an already completed save. If only debug text remains, inspect Output Log for the preserved custom HUD class and check Enable Mission HUD on the one mission actor. No shipping or gameplay acceptance is claimed for this new hook before target-machine verification. UHT and runtime checks require Unreal and cannot run here.
 
 ## Changes
 

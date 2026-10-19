@@ -25,6 +25,10 @@ public:
         meta=(ClampMin="50.0"))
     float InteractionRadius = 200.0f;
 
+    // Preserve custom HUDs; attach our panel only when Unreal uses its generic HUD.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="TGG|HUD")
+    bool bEnableMissionHUD = true;
+
     UPROPERTY(BlueprintReadOnly, Category="TGG|Mission")
     int32 Stage = 0;
 
@@ -60,7 +64,9 @@ private:
 
     bool bReady = false;
     float RetryDelay = 0.0f;
+    bool bReportedCustomHUD = false;
 
+    void UpdateMissionHUD();
     bool SaveState(int32 NewStage, int32 NewCash);
     bool CommitState(int32 NewStage, int32 NewCash,
         const TArray<FName>& NewOwnedPropertyIDs, int32 NewBusinessDay);

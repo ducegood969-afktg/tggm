@@ -1,10 +1,12 @@
 #include "TGGDeliveryMission.h"
 #include "TGGDeliverySave.h"
+#include "TGGWorldHUD.h"
 #include "TGGEconomyRules.h"
 #include "Components/SceneComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 
 namespace
@@ -125,6 +127,10 @@ void ATGGDeliveryMission::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
+    // Controllers may be created after this actor's BeginPlay. Retry until one
+    // exists, and re-check after a controller/HUD change without caching actors.
+    UpdateMissionHUD();
+
     if (!bReady)
     {
         return;
@@ -132,7 +138,10 @@ void ATGGDeliveryMission::Tick(float DeltaSeconds)
 
     RetryDelay = FMath::Max(0.0f, RetryDelay - DeltaSeconds);
 
-    if (GEngine)
+    APlayerController* Controller = UGameplayStatics::GetPlayerController(this, 0);
+    const bool bHasMissionHUD = Controller
+        && Cast<ATGGWorldHUD>(Controller->GetHUD()) != nullptr;
+    if (GEngine && !bHasMissionHUD)
     {
         const FString Objective = Stage == 0
             ? TEXT("Walk to TGG Dispatch")
@@ -186,6 +195,34 @@ void ATGGDeliveryMission::Tick(float DeltaSeconds)
             RetryDelay = 3.0f;
         }
     }
+}
+
+void ATGGDeliveryMission::UpdateMissionHUD()
+{
+    // A duplicate actor must not race to select the HUD. Failed initialization
+    // already disables its tick, preserving the existing controller state.
+    if (!bReady || !bEnableMissionHUD) { return; }
+    APlayerController* Controller = UGameplayStatics::GetPlayerController(this, 0);
+    if (!Controller || !Controller->IsLocalController()) { return; }
+    AHUD* ExistingHUD = Controller->GetHUD();
+    // A null HUD can mean the GameMode is still spawning its chosen class.
+    // Wait rather than racing or replacing an intentionally absent HUD.
+    if (!ExistingHUD) { return; }
+    if (Cast<ATGGWorldHUD>(ExistingHUD)) { return; }
+    if (ExistingHUD->GetClass() != AHUD::StaticClass())
+    {
+        if (!bReportedCustomHUD)
+        {
+            UE_LOG(LogTemp, Display,
+                TEXT("TGG preserved custom HUD %s. To use the TGG panel, "
+                     "set HUD Class to TGGWorldHUD in the active GameMode."),
+                *ExistingHUD->GetClass()->GetPathName());
+            bReportedCustomHUD = true;
+        }
+        return;
+    }
+    Controller->ClientSetHUD(ATGGWorldHUD::StaticClass());
+    UE_LOG(LogTemp, Display, TEXT("TGG mission HUD attached to local controller."));
 }
 
 bool ATGGDeliveryMission::IsCatalogValid() const

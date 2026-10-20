@@ -3,31 +3,41 @@
 param(
     [string]$ProjectRoot = 'D:\TGG\Projects\TGGWorld',
     [string]$EngineRoot = 'C:\Program Files\Epic Games\UE_5.8',
-    [switch]$StageOnly
+    [switch]$StageOnly,
+    [switch]$VerifyAutomation
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'Run this helper on The Studio, in Windows.' }
-$sourceCommit = '52af8e597484000f6408fcdbebffd032aafc670b'
+$sourceCommit = 'd634b4e8bfc65cac58ffb7d2b35ae301e08545e0'
 $sourceBase = "https://raw.githubusercontent.com/ducegood969-afktg/tggm/$sourceCommit/game/unreal/Plugins/TGGGameDesigner"
 $manifest = @(
     @{ Path = 'Config/FilterPlugin.ini'; SHA256 = '266ea37f9ab51887ab2eada839386009e2ec8e43f750646959e922152e2e01f6' }
-    @{ Path = 'README.md'; SHA256 = '6e73731460bcadcfc419111111f0cd7ec4b088c317534da11840214d5b07d398' }
-    @{ Path = 'Source/TGGGameDesigner/Private/TGGDeliveryMission.cpp'; SHA256 = 'd877a2d85f2c3fc52851a4125c905e0aeee0d51df9374f129c702096e31ff77c' }
-    @{ Path = 'Source/TGGGameDesigner/Private/TGGDesignerLibrary.cpp'; SHA256 = 'fbb8b206ab0484fec7f4372d6505bf700f42aeda63ca8853c3773825bed0105e' }
+    @{ Path = 'README.md'; SHA256 = 'aa3a7fe3777780dd3b4aade1fe78d8df0b9b88be35e53523b082f966ef011805' }
+    @{ Path = 'Source/TGGGameDesigner/Private/TGGDeliveryMission.cpp'; SHA256 = '1bc9e2355a7b85b9760cb5cddc762a7d3df4696b062cd12a4e3fbef54ded7e96' }
+    @{ Path = 'Source/TGGGameDesigner/Private/TGGDesignerLibrary.cpp'; SHA256 = '7efc71198e551ed27607ec7c7c9fe954f07e3b31ef66885d1183724c0bdb9983' }
     @{ Path = 'Source/TGGGameDesigner/Private/TGGGameDesignerModule.cpp'; SHA256 = 'f4241b6b750fc2e9cd52263af6e96df1926a40a1aae9a677388f07d803094673' }
-    @{ Path = 'Source/TGGGameDesigner/Private/TGGWorldHUD.cpp'; SHA256 = 'ad0594f8858df4af148c49b49fef15fc4a8ad4e3fe1a7f71ada3d060b67c7c21' }
-    @{ Path = 'Source/TGGGameDesigner/Public/TGGDeliveryMission.h'; SHA256 = '2ebb2a1d8e7b2b622902650c5e4b708a72a20c5b7aef176046b540a50aa41360' }
-    @{ Path = 'Source/TGGGameDesigner/Public/TGGDeliverySave.h'; SHA256 = '34fb5eafa2fd1a04ccf04ebf62ba9589847789ab94c5f52eef0b878dc1a004ec' }
+    @{ Path = 'Source/TGGGameDesigner/Private/TGGWorldHUD.cpp'; SHA256 = 'd7cdade927e9ee280f937f0fd2a894d77b38d473c301954122d294d11d23174d' }
+    @{ Path = 'Source/TGGGameDesigner/Private/Tests/BusinessAutomationTests.cpp'; SHA256 = 'f26e68dd2b3d2cb33f52c277a5cedd0596153cd626fac68c7e5388c3a003e3c5' }
+    @{ Path = 'Source/TGGGameDesigner/Public/TGGDeliveryMission.h'; SHA256 = 'c39ff6dbf39d6e642f7ac48ee5161b9767c138893f5ceb5240a9edc858b12894' }
+    @{ Path = 'Source/TGGGameDesigner/Public/TGGDeliverySave.h'; SHA256 = 'e28e3a7ae4ba65f674b31787fe3f1287060a319e39315da019c43896e51e1493' }
     @{ Path = 'Source/TGGGameDesigner/Public/TGGDesignerLibrary.h'; SHA256 = 'd4b81e7bf58f078d25a947af6d5320861a08a78f8e7712e282330d5aaf388a27' }
-    @{ Path = 'Source/TGGGameDesigner/Public/TGGEconomyRules.h'; SHA256 = '4db7ae319c116cec67f1925688ab8dc0e6fea0ef220fa2c76e919e57877ecd46' }
+    @{ Path = 'Source/TGGGameDesigner/Public/TGGEconomyRules.h'; SHA256 = '8d1a88ed8072d56fa8d6eefc903274255be18fdbe77f680bacdad04b7e2a0738' }
     @{ Path = 'Source/TGGGameDesigner/Public/TGGPropertyDefinition.h'; SHA256 = '25a0b053eb21698331264fddb10ed451597b821d2a9b24c294258b5cde502896' }
-    @{ Path = 'Source/TGGGameDesigner/Public/TGGWorldHUD.h'; SHA256 = '7c8a846318d966a2b5bea9abc3e9e7ec07ea2dbd33cbff21e488177a49765bd4' }
-    @{ Path = 'Source/TGGGameDesigner/TGGGameDesigner.Build.cs'; SHA256 = '833ab87fa331a0d309be962b4f3864bf838af82bac24bdc473a930b593ed3178' }
-    @{ Path = 'Source/TGGGameDesignerEditor/Private/TGGGameDesignerEditorModule.cpp'; SHA256 = '6794afe6552bff6b3c33767a9b6b5cfe1f946697e35c38a42b92792f95984c9c' }
-    @{ Path = 'Source/TGGGameDesignerEditor/TGGGameDesignerEditor.Build.cs'; SHA256 = 'a5f473b5694ce7ca0006b511195dfa8bf69df5908bf2f4d1aa6383d19cf07613' }
-    @{ Path = 'TGGGameDesigner.uplugin'; SHA256 = '68b044a70d988bb9e2a53d803a631efd7ebd8ef44f323f7f8c4edd59d35983be' }
+    @{ Path = 'Source/TGGGameDesigner/Public/TGGWorldHUD.h'; SHA256 = '70752c12ebc4555038d21171746e7cf704d69cbb7bd4a80cd053c9518f1d3407' }
+    @{ Path = 'Source/TGGGameDesigner/TGGGameDesigner.Build.cs'; SHA256 = '7d20c12a883216d1b81908a955c423a313ea4cb2c42f5b75443192356cf50584' }
+    @{ Path = 'Source/TGGGameDesignerEditor/Private/TGGGameDesignerEditorModule.cpp'; SHA256 = 'ef6a79b2565706d3079ad6645c63b61db6bd1047a949162205713f8d71e5736f' }
+    @{ Path = 'Source/TGGGameDesignerEditor/TGGGameDesignerEditor.Build.cs'; SHA256 = '25f2b9525eec25f321db9e5b9eb9027cb0b0417527b912d1ef3e5af7cb4c9f2e' }
+    @{ Path = 'TGGGameDesigner.uplugin'; SHA256 = '94f32c455f6dea184e04bbd157099a646eb7f3302a99df3566efb6bc90efe9b8' }
 )
+function Assert-NativeReport([string]$ReportFile) {
+    $report = Get-Content -LiteralPath $ReportFile -Raw | ConvertFrom-Json
+    if ($report.failed -ne 0 -or $report.notRun -ne 0) { throw "Native report contains failed or unrun tests: $ReportFile" }
+    foreach ($testPath in @('TGG.Business.TransactionRules','TGG.Business.SaveRoundTrip')) {
+        $results = @($report.tests | Where-Object { $_.fullTestPath -eq $testPath })
+        if ($results.Count -ne 1 -or $results[0].state -ne 'Success') { throw "Native check missing or failed: $testPath. No plugin installed. Report: $ReportFile" }
+    }
+}
 function Assert-EditorClosed {
     if (Get-Process -Name UnrealEditor,UnrealEditor-Cmd,TGGWorld,TGGWorld-Win64-Shipping -ErrorAction SilentlyContinue) {
         throw 'Close Unreal Editor, TGGWorld and any Unreal build before continuing. No editor was terminated.'
@@ -76,6 +86,8 @@ foreach ($entry in $manifest) {
     if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.SHA256) { throw "Source checksum mismatch: $($entry.Path). Existing plugin was not changed." }
 }
 Write-Host "Verified candidate: $candidate"
+$candidateVersion = (Get-Content -LiteralPath (Join-Path $candidate 'TGGGameDesigner.uplugin') -Raw | ConvertFrom-Json).VersionName
+Write-Host "Plugin version: $candidateVersion"
 if ($StageOnly) { Write-Host 'STAGED ONLY: existing plugin was not changed or compiled.'; return }
 Write-Host 'Building plugin with Unreal. This can take several minutes; no compile time is promised.'
 $buildLog = Join-Path $work 'BuildPlugin.log'
@@ -83,6 +95,34 @@ $buildLog = Join-Path $work 'BuildPlugin.log'
 if ($LASTEXITCODE -ne 0) { throw "Unreal plugin build failed. Existing plugin was not changed. Log: $buildLog" }
 foreach ($name in @('UnrealEditor-TGGGameDesigner.dll','UnrealEditor-TGGGameDesignerEditor.dll','UnrealEditor.modules')) {
     if (!(Test-Path -LiteralPath (Join-Path $built ('Binaries\Win64\' + $name)) -PathType Leaf)) { throw "Build output missing $name. Existing plugin was not changed." }
+}
+if ($VerifyAutomation) {
+    $editor = Join-Path $EngineRoot 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
+    if (!(Test-Path -LiteralPath $editor -PathType Leaf)) { throw 'UnrealEditor-Cmd.exe is required for native checks. Candidate built but not installed.' }
+    $verification = Join-Path $work 'VerificationProject'
+    $verificationPlugin = Join-Path $verification 'Plugins\TGGGameDesigner'
+    New-Item -ItemType Directory -Path $verificationPlugin -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $built 'TGGGameDesigner.uplugin') -Destination $verificationPlugin
+    Copy-Item -LiteralPath (Join-Path $built 'Binaries') -Destination $verificationPlugin -Recurse -Force
+    $verificationProject = Join-Path $verification 'TGGVerification.uproject'
+    @{FileVersion=3; EngineAssociation='5.8'; Plugins=@(@{Name='TGGGameDesigner'; Enabled=$true})} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $verificationProject -Encoding utf8
+    $reports = Join-Path $work 'AutomationReport'
+    $automationLog = Join-Path $work 'Automation.log'
+    $automationStdout = Join-Path $work 'Automation-stdout.log'
+    $automationStderr = Join-Path $work 'Automation-stderr.log'
+    $arguments = '"' + $verificationProject + '" -unattended -NullRHI -nosound -nosplash -NoSourceControl -ExecCmds="Automation RunTests TGG.Business" -TestExit="Automation Test Queue Empty" -ReportExportPath="' + $reports + '" -AbsLog="' + $automationLog + '"'
+    Write-Host 'Running native business and save checks in a disposable project (maximum five minutes).'
+    $process = Start-Process -FilePath $editor -ArgumentList $arguments -WindowStyle Hidden -RedirectStandardOutput $automationStdout -RedirectStandardError $automationStderr -PassThru
+    if (!$process.WaitForExit(300000)) {
+        & (Join-Path $env:SystemRoot 'System32\taskkill.exe') /PID $process.Id /T /F | Out-Null
+        throw "Native checks timed out. Existing plugin was not changed. Log: $automationLog"
+    }
+    $process.WaitForExit()
+    $process.Refresh()
+    $reportFile = Join-Path $reports 'index.json'
+    if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $reportFile -PathType Leaf)) { throw "Native checks did not finish successfully. Existing plugin was not changed. Log: $automationLog" }
+    Assert-NativeReport $reportFile
+    Write-Host 'NATIVE CHECKS PASSED: business transactions and Unreal SaveGame round trip.'
 }
 Assert-EditorClosed
 if ((Source-Fingerprint $plugin) -cne $before) { throw 'Existing source changed during the build. The candidate was built but not installed.' }

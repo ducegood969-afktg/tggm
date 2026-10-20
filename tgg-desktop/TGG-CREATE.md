@@ -10,6 +10,10 @@ For a stopped or unknown installation, run the repository-root `Diagnose-TGG-Cre
 
 This cloud chat cannot inspect the owner's computer. Its hardware remains unknown until a local diagnostic result is supplied.
 
+## Install an already downloaded SD 1.5 checkpoint
+
+Run the repository-root `Install-TGG-Checkpoint.ps1` locally while ComfyUI is running on port 8188. It reads the active engine launch arguments, honors `--models-directory` before `--base-directory`, and otherwise requires an absolute recognizable ComfyUI script path. Ambiguous/relative paths stop without guessing. It finds the completed `v1-5-pruned-emaonly.safetensors` download (including browser duplicate names), checks its safetensors header, then copies through a temporary file and verifies SHA-256 copy integrity. It preserves the original download and refuses to overwrite a different existing checkpoint. This is copy-integrity verification, not publisher authenticity verification. No backend restart, new model download, settings edit, or startup entry is performed. If the running engine does not list it yet, restart ComfyUI and check again in TGG Create.
+
 ## Generate and export
 
 1. Start your installed ComfyUI with a compatible SD 1.5 or SDXL checkpoint available. Choose a checkpoint whose license fits the intended use. FLUX, diffusion-only loaders, SD3, and other model families need different workflows and are not supported here.

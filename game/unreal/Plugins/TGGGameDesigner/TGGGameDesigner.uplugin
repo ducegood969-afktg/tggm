@@ -1,9 +1,9 @@
 {
   "FileVersion": 3,
-  "Version": 3,
-  "VersionName": "0.2.1",
+  "Version": 4,
+  "VersionName": "0.3.0",
   "FriendlyName": "TGG Game Designer",
-  "Description": "Standalone delivery and reviewed business ownership prototype; Unreal compilation required.",
+  "Description": "Standalone delivery, interactive business menu and persistent in-game daily income prototype.",
   "Category": "TGG",
   "CreatedBy": "TGG",
   "CanContainContent": true,

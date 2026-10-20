@@ -21,4 +21,7 @@ public:
 
     UPROPERTY(SaveGame)
     int32 LastCollectedBusinessDay = -1;
+
+    UPROPERTY(SaveGame)
+    int32 CurrentBusinessDay = 0;
 };

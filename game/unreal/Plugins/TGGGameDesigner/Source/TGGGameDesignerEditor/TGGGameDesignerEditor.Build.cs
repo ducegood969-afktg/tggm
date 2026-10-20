@@ -7,7 +7,7 @@ public class TGGGameDesignerEditor : ModuleRules
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PrivateDependencyModuleNames.AddRange(new string[]
         {
-            "Core", "CoreUObject", "Engine", "UnrealEd",
+            "Core", "CoreUObject", "Engine", "UnrealEd", "TGGGameDesigner",
             "Slate", "SlateCore", "ToolMenus", "PythonScriptPlugin"
         });
     }

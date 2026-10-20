@@ -11,6 +11,9 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 #include "IPythonScriptPlugin.h"
+#include "EngineUtils.h"
+#include "ScopedTransaction.h"
+#include "TGGDeliveryMission.h"
 
 #define LOCTEXT_NAMESPACE "TGGWorldDesigner"
 
@@ -19,6 +22,63 @@ static const FName TGGDesignerTabId(TEXT("TGGWorldDesigner"));
 class FTGGGameDesignerEditorModule : public IModuleInterface
 {
     FString Status = TEXT("Ready. World changes preview in the Unreal viewport.");
+
+    ATGGDeliveryMission* FindEditableMission()
+    {
+        if (!CanEdit()) { return nullptr; }
+        UWorld* World = GEditor->GetEditorWorldContext().World();
+        if (!World) { Status = TEXT("Open the gameplay map first."); return nullptr; }
+        ATGGDeliveryMission* Mission = nullptr;
+        int32 Count = 0;
+        for (TActorIterator<ATGGDeliveryMission> It(World); It; ++It)
+        {
+            Mission = *It;
+            ++Count;
+        }
+        if (Count != 1)
+        {
+            Status = TEXT("Expected exactly one delivery mission actor. No changes made.");
+            return nullptr;
+        }
+        return Mission;
+    }
+
+    void SeedBusinesses()
+    {
+        ATGGDeliveryMission* Mission = FindEditableMission();
+        if (!Mission) { return; }
+        if (!Mission->PropertyCatalog.IsEmpty())
+        {
+            Status = TEXT("Existing property catalog preserved. Edit it in Details.");
+            return;
+        }
+        const FScopedTransaction Transaction(
+            LOCTEXT("StarterBusinesses", "TGG starter business catalog"));
+        Mission->Modify();
+        Mission->InstallStarterBusinesses();
+        Mission->MarkPackageDirty();
+        Status = TEXT("Starter businesses added. Review Details and save the map. Undo is available.");
+    }
+
+    void CheckBusinesses()
+    {
+        ATGGDeliveryMission* Mission = FindEditableMission();
+        if (!Mission) { return; }
+        int32 Revenue = 0;
+        if (Mission->PropertyCatalog.IsEmpty())
+        {
+            Status = TEXT("Catalog empty. Runtime starter fallback applies if enabled in Details.");
+        }
+        else if (!Mission->GetDailyBusinessRevenue(Revenue))
+        {
+            Status = TEXT("Invalid catalog: use unique non-empty IDs, positive prices and nonnegative revenue/staff.");
+        }
+        else
+        {
+            Status = FString::Printf(TEXT("Catalog valid: %d businesses. In Play, press B to open purchases."),
+                Mission->PropertyCatalog.Num());
+        }
+    }
 
     bool CanEdit()
     {
@@ -142,6 +202,14 @@ class FTGGGameDesignerEditorModule : public IModuleInterface
         Text(TEXT(
             "After selecting the mission, edit Pickup Offset and Delivery Offset "
             "in Unreal's Details panel. These do not reset saved completion."));
+
+        Text(TEXT("BUSINESSES - Press B in Play to buy. Daily income is saved automatically."));
+        Add(TEXT("Install Starter Businesses (empty catalog only)"),
+            FSimpleDelegate::CreateLambda([this]() { SeedBusinesses(); }));
+        Add(TEXT("Check Business Catalog"),
+            FSimpleDelegate::CreateLambda([this]() { CheckBusinesses(); }));
+        Text(TEXT("Edit Property Catalog and Business Day Length Seconds on the mission actor. "
+            "These controls do not reset cash or ownership. Staff counts are catalog metadata."));
 
         Add(TEXT("Lighting: Day"),
             FSimpleDelegate::CreateLambda([this]()

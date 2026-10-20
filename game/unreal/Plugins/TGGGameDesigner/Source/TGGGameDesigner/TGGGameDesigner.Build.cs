@@ -6,7 +6,7 @@ public class TGGGameDesigner : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PublicDependencyModuleNames.AddRange(
-            new string[] { "Core", "CoreUObject", "Engine" }
+            new string[] { "Core", "CoreUObject", "Engine", "InputCore" }
         );
     }
 }

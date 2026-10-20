@@ -38,6 +38,19 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="TGG|Business")
     TArray<FTGGPropertyDefinition> PropertyCatalog;
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="TGG|Business")
+    bool bUseStarterCatalogWhenEmpty = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="TGG|Business",
+        meta=(ClampMin="5.0", ClampMax="86400.0"))
+    float BusinessDayLengthSeconds = 300.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category="TGG|Business")
+    int32 CurrentBusinessDay = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category="TGG|Business")
+    FString BusinessStatus;
+
     UPROPERTY(BlueprintReadOnly, Category="TGG|Business")
     TArray<FName> OwnedPropertyIDs;
 
@@ -52,6 +65,15 @@ public:
     UFUNCTION(BlueprintCallable, Category="TGG|Business")
     bool CollectBusinessRevenue(int32 InGameDay);
 
+    UFUNCTION(BlueprintPure, Category="TGG|Business")
+    bool GetDailyBusinessRevenue(int32& Revenue) const;
+
+    UFUNCTION(BlueprintPure, Category="TGG|Business")
+    float GetSecondsUntilBusinessDay() const;
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category="TGG|Business")
+    void InstallStarterBusinesses();
+
     UFUNCTION(BlueprintPure, Category="TGG|Mission")
     bool IsMissionReady() const { return bReady; }
 
@@ -65,10 +87,15 @@ private:
     bool bReady = false;
     float RetryDelay = 0.0f;
     bool bReportedCustomHUD = false;
+    float BusinessDayElapsed = 0.0f;
+    float BusinessRetryDelay = 0.0f;
 
     void UpdateMissionHUD();
+    void TickBusinesses(float DeltaSeconds);
+    bool AdvanceBusinessDay();
     bool SaveState(int32 NewStage, int32 NewCash);
     bool CommitState(int32 NewStage, int32 NewCash,
-        const TArray<FName>& NewOwnedPropertyIDs, int32 NewBusinessDay);
+        const TArray<FName>& NewOwnedPropertyIDs, int32 NewBusinessDay,
+        int32 NewCurrentDay);
     bool IsCatalogValid() const;
 };

@@ -1,44 +1,48 @@
-# TGG Game Designer 0.2.1 — source candidate
+# TGG Game Designer 0.3.0 — businesses and daily income
 
-Based on the owner's uploaded runtime/editor source and plugin descriptor from 2026-10-19. This is a source update for the existing plugin at D:\TGG\Projects\TGGWorld\Plugins\TGGGameDesigner, not a complete game or compiled plugin. Desktop AI Ultra remains 0.1.16.
+Source update for the existing plugin at D:\TGG\Projects\TGGWorld\Plugins\TGGGameDesigner. AI Ultra desktop remains 0.1.16. This is not a cooked game or a complete project archive.
 
-## HUD connection in 0.2.1
+## In-game business menu
 
-The owner verified the 0.2.0 plugin compiled and installed on Unreal 5.8; Play showed delivery complete and $100. That screenshot showed only debug text. The uploaded DefaultEngine.ini contains Android file-server settings and no EngineSettings.GameMapsSettings section; the GameMode may be supplied by the map. DefaultInput.ini uses Enhanced Input. These uploaded settings are not overwritten or committed, and no pawn or input classes are changed.
+Click the Play viewport, then press B. Use Up/Down and Enter to select/buy, or click Buy. Prev/Next browse longer catalogs with the mouse. B or the Close control closes the panel. Escape also closes it if Unreal's editor shortcut does not stop Play first. The menu temporarily blocks gameplay input and balances its own look/movement locks, restoring the prior cursor/click flags when closed or destroyed. It reserves B while the TGG HUD is active; it does not edit DefaultInput.ini or Enhanced Input assets. The UI is a native Canvas HUD, not an asset-based UMG widget.
 
-The mission now waits for the local controller's existing HUD. When Enable Mission HUD is true (default), it replaces exactly the generic AHUD class with TGGWorldHUD. It leaves custom HUD classes and intentionally absent HUDs alone and logs a custom-HUD diagnostic once. The hook runs during Tick so controller creation or replacement after BeginPlay is handled. Once the TGG panel exists, the mission stops adding its duplicate debug text. A custom HUD can be integrated explicitly by selecting TGGWorldHUD as HUD Class in that active GameMode; its asset path is not guessed.
+If the mission's catalog is empty and Use Starter Catalog When Empty is enabled (default), startup supplies MusicVenue ($60, +$10/day), CornerCafe ($80, +$15/day), RentalApartment ($100, +$20/day), each with zero staff. This fallback changes runtime data only, not maps or existing saved cash/ownership. A configured catalog is preserved. These are prototype ledger entries; buying does not alter a building mesh or assign a physical venue.
 
-After the 0.2.1 build/install, Play should show the mint TGG WORLD panel with cash and objective. Stop/Play should retain $100 for an already completed save. If only debug text remains, inspect Output Log for the preserved custom HUD class and check Enable Mission HUD on the one mission actor. No shipping or gameplay acceptance is claimed for this new hook before target-machine verification. UHT and runtime checks require Unreal and cannot run here.
+Prices must match the catalog, IDs must be unique/nonempty, purchase prices positive and revenue/staff nonnegative. Purchases reject duplicates, unknown IDs, wrong prices, insufficient cash and failed saves. The HUD shows owned count, income rate, day and time to payout. The menu shows transaction status. Staff counts remain metadata, not hiring or payroll simulation.
 
-## Changes
+## Business days and saves
 
-The uploaded current delivery actor hard-coded Stage=2 and Cash=100 and omitted pickup, delivery and save/load. The 10:39 backup's mission flow and the 12:05 backup's root/offset properties are restored. Startup requires standalone play and exactly one mission actor; invalid saves stop progression without resetting existing data. An existing completed save remains completed. The delivery reward is added to the current balance, rather than replacing earned cash. Save failures leave in-memory progress and ownership unchanged. The HUD refuses to report completion while mission initialization has failed.
+Default day duration is 300 seconds of active world time. Change Business Day Length Seconds on the one mission actor in the editor if needed (5–86,400 seconds). Paused world time does not count. A frame hitch closes at most one day rather than generating a payout burst. A new day, cash credit, last-collected marker and ownership are saved before memory is updated. Failed day saves retry after three seconds without advancing the day or duplicating cash. Invalid catalog/unknown owned IDs and integer overflow pause day advancement.
 
-FTGGPropertyDefinition is a Blueprint/DataTable-compatible row with PropertyID, PurchasePrice, DailyRevenue and StaffHiredCount. Configure the mission's Property Catalog in Details; no sample business is silently added to your map. IDs must be unique, prices positive and revenue/staff nonnegative. StaffHiredCount is metadata, not a staff simulation.
+Cash, ownership, current day and last-paid day persist in TGG_Delivery_Prototype_v1. Existing completed delivery saves remain completed; no fresh reward is granted. Older save fields are migrated by taking at least the last previously collected day. The partial-day countdown restarts when Play/game reloads; there is no offline income or catch-up income. CollectBusinessRevenue retains its public signature but can only collect the current completed day once; arbitrary future-day arguments no longer grant revenue. Normal timed closure has already paid that day, so calling it again does nothing.
 
-AttemptPropertyPurchase keeps the existing Blueprint name and parameters. PropertyName must identify a catalog row, and PurchaseCost must equal its configured price. Negative/zero prices, duplicate purchases, unknown IDs and insufficient cash are rejected. Cash and ownership persist together in the existing TGG_Delivery_Prototype_v1 slot before memory is updated.
+The mission is single-player/standalone and requires exactly one actor. Corrupt save data disables progression without resetting the save. Delivery pickup/offsets and once-only reward were restored from the owner's backups. The module does not offer a network-authoritative multiplayer economy.
 
-CollectBusinessRevenue(InGameDay) credits one day's revenue for owned properties. Call it from a trusted single-player in-game day controller with a monotonically increasing nonnegative day. Repeating or moving back to an already collected day is rejected. Skipping days gives one payout, not catch-up income. Missing catalog definitions and integer overflow reject the entire transaction. The collection marker persists with the balance. There is no automatic timer or offline income in this candidate.
+## Editor tools
 
-## Apply only to a backup first
+Tools → TGG World Designer now includes Install Starter Businesses (empty catalog only) and Check Business Catalog. Both require an editor map with one mission and refuse Play/Simulate. Catalog creation uses an Unreal transaction, supports Undo and marks the map dirty; review and save explicitly. Existing rows are never overwritten. Selecting the mission exposes catalog, day duration and HUD options in Details. Direct Stage/Cash Blueprint setter nodes may need removal: those saved values are read-only to Blueprints.
 
-1. Close Unreal Editor. Copy the entire project and its Saved/SaveGames folder to a separate backup location. The plugin uses the existing save slot and adds ownership fields; an older binary may discard those fields if it later saves. Do not test rollback on the only save copy.
-2. Overlay this source candidate into the existing Plugins/TGGGameDesigner folder in a project copy. Keep existing plugin Content and other project assets. Do not copy the uploaded old DLL/PDB files as substitutes for rebuilding.
-3. Rebuild the plugin against the project's Unreal Engine 5.8 installation using your existing successful plugin build workflow. This source candidate has NOT passed UHT, Unreal C++ compilation or runtime acceptance here. A Blueprint-only .uproject may need the existing BuildPlugin workflow to compile its C++ plugin.
-4. Open the project copy, compile dependent Blueprints and resolve any direct Stage/Cash setter nodes: those values are restored as read-only Blueprint properties, matching the backed-up mission. Keep exactly one delivery actor and check its restored offsets/radius.
-5. With a separate fresh save, walk to pickup then delivery: stages must be 0 → 1 → 2 and the reward exactly $100 once. Reopen and confirm completion persists. With a copy of the old completed save, confirm it stays complete without another reward.
-6. Add catalog row MusicVenue, price 60, revenue 10, staff 0. With $100, purchase once: $40 and one owned ID. A duplicate, mismatched price, negative price or missing ID must leave the balance unchanged. Reload and confirm $40 and ownership survive.
-7. Collect day 0: $50. Repeat day 0: no change. Reload and repeat: no change. Collect day 1: $60. Test an unwritable save destination in a disposable profile: no transaction should be committed in memory when saving fails.
+## HUD connection
 
-Current map, GameMode/HUD assignments, startup settings and assets cannot be verified without the project's Config and Content. Debug cylinders are prototype markers and may be absent in Shipping; shipping-visible marker assets are still needed. No business purchase UMG panel, character meshes/customization UI, local-model mesh binding, multiplayer economy or cooked Win64 game is included. The existing editor panel also references project Python scripts that were not uploaded.
+The mission waits for the local controller's existing HUD and, when Enable Mission HUD is true, replaces exactly Unreal's generic AHUD with TGGWorldHUD. Custom HUDs and intentionally absent HUDs are preserved. No GameMode, pawn, map or input configuration is replaced. If a custom HUD is preserved, Output Log reports its class; set HUD Class in that active GameMode explicitly to use this panel. The uploaded engine configuration had no global GameMapsSettings section, so map overrides are not guessed.
 
-## Checks performed here
+## Apply and verify
 
-The actual engine-independent transaction functions were compiled with g++ C++17, strict warnings, AddressSanitizer and UndefinedBehaviorSanitizer. Boundary cases plus 100,000 deterministic randomized transactions pass, covering invalid costs, insufficient cash, duplicate-ownership input, overflow and delivery credits. This verifies arithmetic, not Unreal reflection, actor/save integration, UI or Windows packaging. Unreal Engine is not installed in this environment.
+Keep Unreal, TGGWorld and other Unreal builds closed. Use the root Update-TGGGameDesigner.ps1 helper, preferably with -VerifyAutomation. It stages pinned checksum-verified source, builds with Unreal 5.8, optionally runs two native checks in a disposable empty project, then backs up the complete original plugin and project Saved/SaveGames before copying verified built files. Existing plugin Content remains untouched. A failed build/check aborts before installation. The backup does not include every project map/asset or save directory of separately packaged games; retain a separate full project backup. An older binary can discard newer save fields if it later saves, so test rollback only on a save copy.
 
-Run from repository root:
+Target acceptance after BUILT AND COPIED:
 
-```sh
-g++ -std=c++17 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -fno-omit-frame-pointer -I game/unreal/Plugins/TGGGameDesigner/Source/TGGGameDesigner/Public game/unreal/Tests/economy-rules.cpp -o /tmp/tgg-economy-rules
-/tmp/tgg-economy-rules
-```
+1. Play: the existing completed delivery should still have $100 before any business purchase.
+2. B → MusicVenue → Buy/Enter: balance becomes $40, venue is OWNED and income +$10/day. A duplicate attempt must not spend more. Buying an $80 cafe with $40 must be refused.
+3. Close the menu: movement/look resume. Reopen: ownership remains. Stop/Play: $40 and MusicVenue remain; countdown starts a fresh partial day.
+4. Wait for the five-minute day (or use a separate test-save copy and a short editor day setting): day 1 becomes $50, day 2 $60. Reopening the menu does not trigger an extra payout.
+5. Use a disposable profile to test failed saves; an unsuccessful purchase/day save must leave the previous balance and ownership unchanged.
+6. Test mouse Buy, Prev/Next, B close, controller/HUD destruction and different viewport sizes. Native automation does not establish UI acceptance.
+
+## Validation evidence and remaining scope
+
+Owner confirmed 0.2.0 compiled/installed and 0.2.1 compiled and showed the custom HUD with Stage 2/$100 on Unreal 5.8. Those observations do not validate the new 0.3.0 UI/clock. The engine-independent transaction functions pass boundary cases plus 100,000 deterministic randomized transactions under g++ C++17 with AddressSanitizer/UndefinedBehaviorSanitizer. New cases cover purchase → daily credit → replay refusal and atomic output on balance/day overflow.
+
+Two Unreal development automation checks are included: TGG.Business.TransactionRules and TGG.Business.SaveRoundTrip. The latter uses Unreal SaveGame-to-memory serialization for ownership, cash and day markers without touching player saves. They cannot run here because Unreal is absent. The helper's -VerifyAutomation mode requires both tests to report Success before installing; logs/reports remain in its Downloads staging directory. Windows compilation, native checks, input, frame timing, disk-save behavior and gameplay for 0.3.0 remain target-machine checks.
+
+No character mesh assets, character customization UI, local-model mesh binding, real venue placement, payroll, multiplayer or Shipping game package is included. Existing project scripts referenced by the editor panel were not uploaded. Prototype debug delivery markers may not appear in Shipping.

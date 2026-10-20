@@ -53,7 +53,8 @@ void ATGGDeliveryMission::BeginPlay()
 
         bool bValid = Data
             && TGGEconomyRules::ValidMissionState(Data->Stage, Data->Cash)
-            && Data->LastCollectedBusinessDay >= -1;
+            && Data->LastCollectedBusinessDay >= -1
+            && Data->CurrentBusinessDay >= 0;
         TSet<FName> Seen;
         if (Data)
         {
@@ -76,6 +77,18 @@ void ATGGDeliveryMission::BeginPlay()
         Cash = Data->Cash;
         OwnedPropertyIDs = Data->OwnedPropertyIDs;
         LastCollectedBusinessDay = Data->LastCollectedBusinessDay;
+        // Older saves only tracked the last collected day. Never pay it again.
+        CurrentBusinessDay = FMath::Max(Data->CurrentBusinessDay,
+            FMath::Max(0, LastCollectedBusinessDay));
+    }
+
+    if (bUseStarterCatalogWhenEmpty && PropertyCatalog.IsEmpty())
+    {
+        InstallStarterBusinesses();
+    }
+    if (!IsCatalogValid())
+    {
+        BusinessStatus = TEXT("Invalid business catalog: check unique IDs and prices.");
     }
 
     bReady = true;
@@ -86,13 +99,16 @@ void ATGGDeliveryMission::BeginPlay()
 bool ATGGDeliveryMission::SaveState(int32 NewStage, int32 NewCash)
 {
     return CommitState(NewStage, NewCash, OwnedPropertyIDs,
-        LastCollectedBusinessDay);
+        LastCollectedBusinessDay, CurrentBusinessDay);
 }
 
 bool ATGGDeliveryMission::CommitState(int32 NewStage, int32 NewCash,
-    const TArray<FName>& NewOwnedPropertyIDs, int32 NewBusinessDay)
+    const TArray<FName>& NewOwnedPropertyIDs, int32 NewBusinessDay,
+    int32 NewCurrentDay)
 {
-    if (!TGGEconomyRules::ValidMissionState(NewStage, NewCash)) { return false; }
+    if (!TGGEconomyRules::ValidMissionState(NewStage, NewCash)
+        || NewBusinessDay < -1 || NewCurrentDay < 0
+        || NewBusinessDay > NewCurrentDay) { return false; }
     UTGGDeliverySave* Data = Cast<UTGGDeliverySave>(
         UGameplayStatics::CreateSaveGameObject(
             UTGGDeliverySave::StaticClass()));
@@ -106,6 +122,7 @@ bool ATGGDeliveryMission::CommitState(int32 NewStage, int32 NewCash,
     Data->Cash = NewCash;
     Data->OwnedPropertyIDs = NewOwnedPropertyIDs;
     Data->LastCollectedBusinessDay = NewBusinessDay;
+    Data->CurrentBusinessDay = NewCurrentDay;
 
     if (!UGameplayStatics::SaveGameToSlot(Data, TGGDeliverySaveSlot, 0))
     {
@@ -118,6 +135,7 @@ bool ATGGDeliveryMission::CommitState(int32 NewStage, int32 NewCash,
     Cash = NewCash;
     OwnedPropertyIDs = NewOwnedPropertyIDs;
     LastCollectedBusinessDay = NewBusinessDay;
+    CurrentBusinessDay = NewCurrentDay;
     UE_LOG(LogTemp, Display,
         TEXT("TGG delivery saved. Stage=%d Cash=%d"), Stage, Cash);
     return true;
@@ -137,6 +155,7 @@ void ATGGDeliveryMission::Tick(float DeltaSeconds)
     }
 
     RetryDelay = FMath::Max(0.0f, RetryDelay - DeltaSeconds);
+    TickBusinesses(DeltaSeconds);
 
     APlayerController* Controller = UGameplayStatics::GetPlayerController(this, 0);
     const bool bHasMissionHUD = Controller
@@ -244,40 +263,133 @@ bool ATGGDeliveryMission::IsCatalogValid() const
 bool ATGGDeliveryMission::AttemptPropertyPurchase(
     FString PropertyName, int32 PurchaseCost)
 {
-    if (!bReady || !HasAuthority() || !IsCatalogValid()) { return false; }
+    if (!bReady || !HasAuthority() || !IsCatalogValid())
+    {
+        BusinessStatus = TEXT("Business system unavailable: check mission/catalog.");
+        return false;
+    }
     const FName ID(*PropertyName.TrimStartAndEnd());
     const FTGGPropertyDefinition* Property = PropertyCatalog.FindByPredicate(
         [ID](const FTGGPropertyDefinition& Item) { return Item.PropertyID == ID; });
     int32 NewCash = Cash;
-    if (!Property || PurchaseCost != Property->PurchasePrice
-        || !TGGEconomyRules::PurchaseBalance(Cash, PurchaseCost,
+    if (!Property || PurchaseCost != Property->PurchasePrice)
+    {
+        BusinessStatus = TEXT("Unknown property or price does not match catalog.");
+        return false;
+    }
+    if (OwnedPropertyIDs.Contains(ID))
+    {
+        BusinessStatus = TEXT("You already own this business. No cash was spent.");
+        return false;
+    }
+    if (!TGGEconomyRules::PurchaseBalance(Cash, PurchaseCost,
             OwnedPropertyIDs.Contains(ID), NewCash))
     {
+        BusinessStatus = TEXT("Insufficient cash. No purchase was made.");
         return false;
     }
     TArray<FName> NewOwned = OwnedPropertyIDs;
     NewOwned.Add(ID);
-    return CommitState(Stage, NewCash, NewOwned, LastCollectedBusinessDay);
+    if (!CommitState(Stage, NewCash, NewOwned, LastCollectedBusinessDay,
+        CurrentBusinessDay))
+    {
+        BusinessStatus = TEXT("Save failed. Purchase was not applied.");
+        return false;
+    }
+    BusinessStatus = FString::Printf(TEXT("Purchased %s for $%d. Ownership saved."),
+        *ID.ToString(), PurchaseCost);
+    return true;
 }
 
 bool ATGGDeliveryMission::CollectBusinessRevenue(int32 InGameDay)
 {
-    if (!bReady || !HasAuthority() || InGameDay < 0
+    if (!bReady || !HasAuthority() || InGameDay <= 0
+        || InGameDay != CurrentBusinessDay
         || InGameDay <= LastCollectedBusinessDay || OwnedPropertyIDs.IsEmpty()
         || !IsCatalogValid())
     {
         return false;
     }
+    int32 Revenue = 0;
     int32 NewCash = Cash;
+    if (!GetDailyBusinessRevenue(Revenue)
+        || !TGGEconomyRules::CollectAvailableDay(Cash, Revenue,
+            InGameDay, LastCollectedBusinessDay, NewCash)) { return false; }
+    return CommitState(Stage, NewCash, OwnedPropertyIDs, InGameDay,
+        CurrentBusinessDay);
+}
+
+void ATGGDeliveryMission::InstallStarterBusinesses()
+{
+    if (!PropertyCatalog.IsEmpty()) { return; }
+    const auto Add = [this](const TCHAR* ID, int32 Price, int32 Revenue)
+    {
+        FTGGPropertyDefinition Item;
+        Item.PropertyID = FName(ID);
+        Item.PurchasePrice = Price;
+        Item.DailyRevenue = Revenue;
+        PropertyCatalog.Add(Item);
+    };
+    Add(TEXT("MusicVenue"), 60, 10);
+    Add(TEXT("CornerCafe"), 80, 15);
+    Add(TEXT("RentalApartment"), 100, 20);
+    BusinessStatus = TEXT("Starter catalog loaded. No cash or ownership was reset.");
+}
+
+bool ATGGDeliveryMission::GetDailyBusinessRevenue(int32& Revenue) const
+{
+    Revenue = 0;
+    if (!IsCatalogValid()) { return false; }
     for (FName ID : OwnedPropertyIDs)
     {
         const FTGGPropertyDefinition* Property = PropertyCatalog.FindByPredicate(
             [ID](const FTGGPropertyDefinition& Item) { return Item.PropertyID == ID; });
         if (!Property || !TGGEconomyRules::CreditBalance(
-            NewCash, Property->DailyRevenue, NewCash))
+            Revenue, Property->DailyRevenue, Revenue))
         {
+            Revenue = 0;
             return false;
         }
     }
-    return CommitState(Stage, NewCash, OwnedPropertyIDs, InGameDay);
+    return true;
+}
+
+float ATGGDeliveryMission::GetSecondsUntilBusinessDay() const
+{
+    const float Duration = FMath::IsFinite(BusinessDayLengthSeconds)
+        ? FMath::Clamp(BusinessDayLengthSeconds, 5.0f, 86400.0f) : 300.0f;
+    return FMath::Max(0.0f, Duration - BusinessDayElapsed);
+}
+
+void ATGGDeliveryMission::TickBusinesses(float DeltaSeconds)
+{
+    if (!FMath::IsFinite(DeltaSeconds) || DeltaSeconds <= 0.0f) { return; }
+    BusinessRetryDelay = FMath::Max(0.0f, BusinessRetryDelay - DeltaSeconds);
+    const float Remaining = GetSecondsUntilBusinessDay();
+    BusinessDayElapsed += FMath::Min(DeltaSeconds, Remaining);
+    if (GetSecondsUntilBusinessDay() > 0.0f || BusinessRetryDelay > 0.0f) { return; }
+    if (AdvanceBusinessDay()) { BusinessDayElapsed = 0.0f; }
+    else { BusinessRetryDelay = 3.0f; }
+}
+
+bool ATGGDeliveryMission::AdvanceBusinessDay()
+{
+    int32 Revenue = 0;
+    int32 NewCash = Cash;
+    int32 NewDay = CurrentBusinessDay;
+    if (!GetDailyBusinessRevenue(Revenue)
+        || !TGGEconomyRules::CloseBusinessDay(Cash, Revenue,
+            CurrentBusinessDay, LastCollectedBusinessDay, NewCash, NewDay))
+    {
+        BusinessStatus = TEXT("Daily income paused: invalid catalog or balance limit.");
+        return false;
+    }
+    if (!CommitState(Stage, NewCash, OwnedPropertyIDs, NewDay, NewDay))
+    {
+        BusinessStatus = TEXT("Daily income save failed. No cash was credited; retrying.");
+        return false;
+    }
+    BusinessStatus = FString::Printf(TEXT("Business day %d: +$%d income saved."),
+        NewDay, Revenue);
+    return true;
 }

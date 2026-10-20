@@ -1,10 +1,18 @@
-# TGG Create preview (0.1.17)
+# TGG Create preview (0.1.18)
 
 TGG Create is a local text-to-image workspace inside AI Ultra. It uses an existing ComfyUI installation and its installed checkpoint; it is not Adobe Firefly, an Adobe integration, or a newly trained model. No cloud API or paid account is required by this adapter. Hardware, electricity, disk space, and model licensing still belong to the local setup.
 
+## Checkpoint setup repair
+
+The model list refreshes automatically whenever TGG Create opens. Refresh models / check computer also rechecks both supported engines and reports the active checkpoint folder when it can be resolved. Generate remains disabled until a checkpoint is listed. The default canvas is 512×512; landscape and portrait use 768×512 and 512×768.
+
+Use **Install downloaded checkpoint** to select a completed `.safetensors` file from any local drive, including D:. The native process recognizes Comfy Desktop’s generated `instance-model-paths/inst-*.yaml` configuration, or explicit model/base-directory flags. Automatic import requires a single identified destination. It checks the safetensors header, tensor bounds, and presence of diffusion/text-encoder/VAE components, then copies and verifies SHA-256 while preserving the original. A different existing file is never overwritten. The final destination is published without overwrite through a hard link after verification (requires a filesystem supporting hard links, such as NTFS). Pending copy files are cleaned up on errors or cancellation. Copying a large file can finish before Stop is observed; its temporary copy is then removed.
+
+Discovery and copying do not install or restart ComfyUI, alter its configuration, or train a model. If the backend still lists no model after a verified copy, restart ComfyUI and refresh. This chat cannot restart the owner’s backend remotely.
+
 ## Check The Studio first
 
-Unlock Owner settings, open **TGG Create**, then choose **Check this computer**. The check reports Electron's graphics-device identity and probes only `127.0.0.1:8188` and `127.0.0.1:8000` for ComfyUI system information and checkpoint metadata. A running ComfyUI can report VRAM. Electron graphics metadata alone does not establish available VRAM.
+Unlock Owner settings and open **TGG Create**. Use **Refresh models / check computer** to check again. The check reports Electron's graphics-device identity and probes only `127.0.0.1:8188` and `127.0.0.1:8000` for ComfyUI system information and checkpoint metadata. A running ComfyUI can report VRAM. Electron graphics metadata alone does not establish available VRAM.
 
 For a stopped or unknown installation, run the repository-root `Diagnose-TGG-Create.ps1` locally. It reads Windows graphics-controller information, optionally queries NVIDIA's installed `nvidia-smi.exe`, checks both fixed ComfyUI ports, and examines common installation folders with a bounded one-level search. It writes `Downloads\TGG-Create-Diagnostic.json`. It does not install anything, enable startup, start processes other than the bounded NVIDIA diagnostic, change settings, or upload the report. Review local paths before sharing. Undetected does not mean absent; custom installation locations are outside this search.
 
@@ -12,7 +20,7 @@ This cloud chat cannot inspect the owner's computer. Its hardware remains unknow
 
 ## Install an already downloaded SD 1.5 checkpoint
 
-Run the repository-root `Install-TGG-Checkpoint.ps1` locally while ComfyUI is running on port 8188. It reads the active engine launch arguments, honors `--models-directory` before `--base-directory`, and otherwise requires an absolute recognizable ComfyUI script path. Ambiguous/relative paths stop without guessing. It finds the completed `v1-5-pruned-emaonly.safetensors` download (including browser duplicate names), checks its safetensors header, then copies through a temporary file and verifies SHA-256 copy integrity. It preserves the original download and refuses to overwrite a different existing checkpoint. This is copy-integrity verification, not publisher authenticity verification. No backend restart, new model download, settings edit, or startup entry is performed. If the running engine does not list it yet, restart ComfyUI and check again in TGG Create.
+Run the repository-root `Install-TGG-Checkpoint.ps1` locally while ComfyUI is running on port 8188. It reads the active engine launch arguments, honors `--models-directory` before `--base-directory`, and otherwise requires an absolute recognizable ComfyUI script path. Generated Comfy Desktop model-path configuration is also supported. Ambiguous/relative paths stop without guessing. The helper accepts `-ModelFile` and `-CheckpointDirectory` for explicit paths and also checks the known SD 1.5 download filename at the root of D:. It finds the completed `v1-5-pruned-emaonly.safetensors` download (including browser duplicate names), checks its safetensors header, then copies through a temporary file and verifies SHA-256 copy integrity. It preserves the original download and refuses to overwrite a different existing checkpoint. This is copy-integrity verification, not publisher authenticity verification. No backend restart, new model download, settings edit, or startup entry is performed. If the running engine does not list it yet, restart ComfyUI and check again in TGG Create.
 
 ## Generate and export
 

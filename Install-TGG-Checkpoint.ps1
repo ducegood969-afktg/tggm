@@ -1,7 +1,7 @@
 # Copies the owner's completed SD 1.5 download into the running ComfyUI's model path.
 # No model download, process termination, startup change, or settings change.
 [CmdletBinding()]
-param()
+param([string]$ModelFile, [string]$CheckpointDirectory)
 $ErrorActionPreference = 'Stop'
 function Get-ComfyArgument {
     param([object[]]$Arguments, [string]$Name)
@@ -16,6 +16,18 @@ function Get-ComfyArgument {
 }
 function Get-ComfyCheckpointDirectory {
     param([object[]]$Arguments)
+    $config = Get-ComfyArgument $Arguments '--extra-model-paths-config'
+    if ($config -and -not (Get-ComfyArgument $Arguments '--models-directory') -and -not (Get-ComfyArgument $Arguments '--base-directory')) {
+        $configRoot = Join-Path $env:APPDATA 'Comfy Desktop\instance-model-paths'
+        if ([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($config)) -ne [IO.Path]::GetFullPath($configRoot)) { throw 'ComfyUI model configuration is outside the expected Desktop folder.' }
+        $info = Get-Item -LiteralPath $config
+        if ($info.Length -gt 256KB -or $info.LinkType) { throw 'Unsupported model configuration file.' }
+        $lines = @(Get-Content -LiteralPath $config)
+        $bases = @($lines | Where-Object { $_ -match "^  base_path: '([^']+)'\s*$" } | ForEach-Object { [void]($_ -match "^  base_path: '([^']+)'\s*$"); $Matches[1] })
+        $checkpoints = @($lines | Where-Object { $_ -match "^  'checkpoints': 'checkpoints/'\s*$" })
+        if ($bases.Count -ne 1 -or $checkpoints.Count -ne 1 -or -not [IO.Path]::IsPathRooted($bases[0]) -or $bases[0].StartsWith('\\')) { throw 'Model configuration is ambiguous or uses an unsupported layout. Use TGG Create Install downloaded checkpoint.' }
+        return Join-Path $bases[0] 'checkpoints'
+    }
     $models = Get-ComfyArgument $Arguments '--models-directory'
     if (-not $models) {
         $basePath = Get-ComfyArgument $Arguments '--base-directory'
@@ -33,9 +45,11 @@ function Get-ComfyCheckpointDirectory {
 }
 $stats = Invoke-RestMethod -Uri 'http://127.0.0.1:8188/system_stats' -TimeoutSec 10 -MaximumRedirection 0
 if (-not $stats.system.argv) { throw 'The running service did not report ComfyUI launch arguments. No files were changed.' }
-$destinationDirectory = Get-ComfyCheckpointDirectory @($stats.system.argv)
+$destinationDirectory = if ($CheckpointDirectory) { if (-not [IO.Path]::IsPathRooted($CheckpointDirectory) -or $CheckpointDirectory.StartsWith('\\')) { throw 'Checkpoint directory must be a local absolute path.' }; $CheckpointDirectory } else { Get-ComfyCheckpointDirectory @($stats.system.argv) }
 $downloadDirectory = Join-Path $env:USERPROFILE 'Downloads'
 $candidates = @(Get-ChildItem -LiteralPath $downloadDirectory -File | Where-Object { $_.Name -match '^v1-5-pruned-emaonly(?: \(\d+\))?\.safetensors$' } | Sort-Object LastWriteTime -Descending)
+if (Test-Path -LiteralPath 'D:\v1-5-pruned-emaonly.safetensors' -PathType Leaf) { $candidates = @((Get-Item -LiteralPath 'D:\v1-5-pruned-emaonly.safetensors')) + $candidates }
+if ($ModelFile) { $candidates = @((Get-Item -LiteralPath $ModelFile)) }
 if ($candidates.Count -eq 0) { throw 'The completed v1-5-pruned-emaonly.safetensors file was not found in Downloads. Do not rename a .crdownload or .part file.' }
 $source = $candidates[0]
 if ($source.Length -lt 1GB) { throw 'The checkpoint is smaller than expected. Let the download finish before retrying.' }

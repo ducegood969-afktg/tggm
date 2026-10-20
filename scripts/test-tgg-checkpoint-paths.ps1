@@ -13,5 +13,14 @@ try{
  [IO.File]::WriteAllText((Join-Path $root 'folder_paths.py'),'# fixture')
  if((Get-ComfyCheckpointDirectory @((Join-Path $root 'main.py'))) -ne $expected){throw 'Script path failed'}
  foreach($arguments in @(@('main.py'),@('main.py','--base-directory','relative'),@('main.py','--base-directory'))){$rejected=$false;try{Get-ComfyCheckpointDirectory $arguments | Out-Null}catch{$rejected=$true};if(-not $rejected){throw 'Unsafe path accepted'}}
- 'PASS: base directory, equals syntax, models override, script path, and three failure cases.'
+ $oldAppData=$env:APPDATA
+ try {
+  $env:APPDATA=$root
+  $configDirectory=Join-Path $root 'Comfy Desktop/instance-model-paths'
+  [void][IO.Directory]::CreateDirectory($configDirectory)
+  $config=Join-Path $configDirectory 'inst-test.yaml'
+  [IO.File]::WriteAllText($config,"comfy.desktop_0:`n  base_path: '$root'`n  'checkpoints': 'checkpoints/'`n")
+  if((Get-ComfyCheckpointDirectory @('ComfyUI\main.py','--extra-model-paths-config',$config)) -ne (Join-Path $root 'checkpoints')){throw 'Desktop config failed'}
+ }finally{$env:APPDATA=$oldAppData}
+ 'PASS: base directory, equals syntax, models override, script path, Desktop generated configuration, and three failure cases.'
 }finally{Remove-Item -LiteralPath $root -Recurse -Force}

@@ -4,7 +4,8 @@ param(
     [string]$ProjectRoot = 'D:\TGG\Projects\TGGWorld',
     [string]$EngineRoot = 'C:\Program Files\Epic Games\UE_5.8',
     [switch]$StageOnly,
-    [switch]$VerifyAutomation
+    [switch]$VerifyAutomation,
+    [string]$ResumeWork
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -38,6 +39,44 @@ function Assert-NativeReport([string]$ReportFile) {
         if ($results.Count -ne 1 -or $results[0].state -ne 'Success') { throw "Native check missing or failed: $testPath. No plugin installed. Report: $ReportFile" }
     }
 }
+function Assert-NativeCompletion($ExitCode, [string]$ReportFile) {
+    if ($null -eq $ExitCode) { throw 'Windows did not provide a native process exit status. No plugin installed.' }
+    if ($ExitCode -ne 0) { throw "Native process exited with status $ExitCode. No plugin installed." }
+    if (!(Test-Path -LiteralPath $ReportFile -PathType Leaf)) { throw "Native test report was not produced: $ReportFile" }
+    Assert-NativeReport $ReportFile
+}
+function Assert-ResumeCandidate([string]$WorkFolder, $Entries, [string]$InstalledPlugin) {
+    $staged = Join-Path $WorkFolder 'Candidate/TGGGameDesigner'
+    $packaged = Join-Path $WorkFolder 'BuiltPlugin'
+    $log = Join-Path $WorkFolder 'BuildPlugin.log'
+    if (!(Test-Path -LiteralPath $log -PathType Leaf)) { throw 'Resume requires the original successful BuildPlugin.log.' }
+    $buildText = Get-Content -LiteralPath $log -Raw
+    if ($buildText -notmatch 'BUILD SUCCESSFUL' -or $buildText -notmatch 'AutomationTool exiting with ExitCode=0') { throw 'Resume build log does not establish successful compilation.' }
+    foreach ($entry in $Entries) {
+        $file = Join-Path $staged $entry.Path
+        if (!(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.SHA256) { throw "Resume candidate changed or is missing: $($entry.Path)" }
+        if ($entry.Path.StartsWith('Source/')) {
+            $compiledSource = Join-Path $packaged $entry.Path
+            if (!(Test-Path -LiteralPath $compiledSource -PathType Leaf) -or (Get-FileHash -LiteralPath $compiledSource -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.SHA256) { throw "Packaged source does not match the pinned candidate: $($entry.Path)" }
+        }
+    }
+    # UAT legitimately adds Installed/EngineVersion to the packaged descriptor.
+    $expected = Get-Content -LiteralPath (Join-Path $staged 'TGGGameDesigner.uplugin') -Raw | ConvertFrom-Json
+    $actual = Get-Content -LiteralPath (Join-Path $packaged 'TGGGameDesigner.uplugin') -Raw | ConvertFrom-Json
+    $expectedModules = @($expected.Modules | ForEach-Object { $_.Name + ':' + $_.Type } | Sort-Object) -join ','
+    $actualModules = @($actual.Modules | ForEach-Object { $_.Name + ':' + $_.Type } | Sort-Object) -join ','
+    if ($expected.VersionName -ne $actual.VersionName -or $expectedModules -cne $actualModules) { throw 'Packaged plugin version/modules do not match the staged candidate.' }
+    $pinned = @($Entries | ForEach-Object { $_.Path })
+    foreach ($base in @($InstalledPlugin, $staged)) {
+        $other = if ($base -eq $InstalledPlugin) { $staged } else { $InstalledPlugin }
+        foreach ($file in Get-ChildItem -LiteralPath (Join-Path $base 'Source') -Recurse -File) {
+            $relative = $file.FullName.Substring($base.Length).TrimStart([IO.Path]::DirectorySeparatorChar).Replace('\','/')
+            if ($relative -in $pinned) { continue }
+            $counterpart = Join-Path $other $relative
+            if (!(Test-Path -LiteralPath $counterpart -PathType Leaf) -or (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $counterpart -Algorithm SHA256).Hash) { throw "Unreviewed local source differs from the earlier build; rebuild instead: $relative" }
+        }
+    }
+}
 function Assert-EditorClosed {
     if (Get-Process -Name UnrealEditor,UnrealEditor-Cmd,TGGWorld,TGGWorld-Win64-Shipping -ErrorAction SilentlyContinue) {
         throw 'Close Unreal Editor, TGGWorld and any Unreal build before continuing. No editor was terminated.'
@@ -67,61 +106,80 @@ Assert-NoLinks $plugin
 $before = Source-Fingerprint $plugin
 $uat = Join-Path $EngineRoot 'Engine\Build\BatchFiles\RunUAT.bat'
 if (!$StageOnly -and !(Test-Path -LiteralPath $uat -PathType Leaf)) { throw "Unreal build tool not found: $uat. Pass -EngineRoot with your UE_5.8 installation." }
-$work = Join-Path $env:USERPROFILE ('Downloads\TGG-Plugin-' + [guid]::NewGuid().ToString('N'))
+if ($ResumeWork) {
+    if ($StageOnly) { throw 'Choose ResumeWork or StageOnly, not both.' }
+    $work = (Resolve-Path -LiteralPath $ResumeWork).Path.TrimEnd('\')
+    $downloads = (Resolve-Path -LiteralPath (Join-Path $env:USERPROFILE 'Downloads')).Path.TrimEnd('\')
+    if ((Split-Path -Parent $work) -ine $downloads -or (Split-Path -Leaf $work) -notmatch '^TGG-Plugin-[a-f0-9]{32}$') { throw 'ResumeWork must select a TGG-Plugin staging folder directly inside your Downloads.' }
+    Assert-NoLinks $work
+    $VerifyAutomation = $true
+} else {
+    $work = Join-Path $env:USERPROFILE ('Downloads\TGG-Plugin-' + [guid]::NewGuid().ToString('N'))
+}
 $candidate = Join-Path $work 'Candidate\TGGGameDesigner'
 $built = Join-Path $work 'BuiltPlugin'
-$backup = Join-Path $work 'Backup'
-New-Item -ItemType Directory -Path $candidate -Force | Out-Null
-# Retain local Content and plugin extras; generated binaries are rebuilt separately.
-foreach ($item in Get-ChildItem -LiteralPath $plugin -Force) {
-    if ($item.Name -notin @('Binaries','Intermediate','.git','Saved','DerivedDataCache')) {
-        Copy-Item -LiteralPath $item.FullName -Destination $candidate -Recurse -Force
+$backup = Join-Path $work ('Backup-' + [guid]::NewGuid().ToString('N'))
+if ($ResumeWork) {
+    Assert-ResumeCandidate $work $manifest $plugin
+    Write-Host "Resuming verified plugin build: $built. No recompilation requested."
+} else {
+    New-Item -ItemType Directory -Path $candidate -Force | Out-Null
+    # Retain local Content and plugin extras; generated binaries are rebuilt separately.
+    foreach ($item in Get-ChildItem -LiteralPath $plugin -Force) {
+        if ($item.Name -notin @('Binaries','Intermediate','.git','Saved','DerivedDataCache')) {
+            Copy-Item -LiteralPath $item.FullName -Destination $candidate -Recurse -Force
+        }
     }
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    foreach ($entry in $manifest) {
+        $target = Join-Path $candidate $entry.Path
+        New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
+        Invoke-WebRequest -UseBasicParsing -Uri ($sourceBase + '/' + $entry.Path) -OutFile $target
+        if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.SHA256) { throw "Source checksum mismatch: $($entry.Path). Existing plugin was not changed." }
+    }
+    Write-Host "Verified candidate: $candidate"
+    if ($StageOnly) { Write-Host 'STAGED ONLY: existing plugin was not changed or compiled.'; return }
+    Write-Host 'Building plugin with Unreal. This can take several minutes; no compile time is promised.'
+    $buildLog = Join-Path $work 'BuildPlugin.log'
+    & $uat BuildPlugin ("-Plugin=" + (Join-Path $candidate 'TGGGameDesigner.uplugin')) ("-Package=" + $built) -TargetPlatforms=Win64 -Rocket 2>&1 | Tee-Object -FilePath $buildLog
+    if ($LASTEXITCODE -ne 0) { throw "Unreal plugin build failed. Existing plugin was not changed. Log: $buildLog" }
 }
-[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-foreach ($entry in $manifest) {
-    $target = Join-Path $candidate $entry.Path
-    New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
-    Invoke-WebRequest -UseBasicParsing -Uri ($sourceBase + '/' + $entry.Path) -OutFile $target
-    if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.SHA256) { throw "Source checksum mismatch: $($entry.Path). Existing plugin was not changed." }
-}
-Write-Host "Verified candidate: $candidate"
 $candidateVersion = (Get-Content -LiteralPath (Join-Path $candidate 'TGGGameDesigner.uplugin') -Raw | ConvertFrom-Json).VersionName
 Write-Host "Plugin version: $candidateVersion"
-if ($StageOnly) { Write-Host 'STAGED ONLY: existing plugin was not changed or compiled.'; return }
-Write-Host 'Building plugin with Unreal. This can take several minutes; no compile time is promised.'
-$buildLog = Join-Path $work 'BuildPlugin.log'
-& $uat BuildPlugin ("-Plugin=" + (Join-Path $candidate 'TGGGameDesigner.uplugin')) ("-Package=" + $built) -TargetPlatforms=Win64 -Rocket 2>&1 | Tee-Object -FilePath $buildLog
-if ($LASTEXITCODE -ne 0) { throw "Unreal plugin build failed. Existing plugin was not changed. Log: $buildLog" }
 foreach ($name in @('UnrealEditor-TGGGameDesigner.dll','UnrealEditor-TGGGameDesignerEditor.dll','UnrealEditor.modules')) {
     if (!(Test-Path -LiteralPath (Join-Path $built ('Binaries\Win64\' + $name)) -PathType Leaf)) { throw "Build output missing $name. Existing plugin was not changed." }
 }
 if ($VerifyAutomation) {
     $editor = Join-Path $EngineRoot 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
     if (!(Test-Path -LiteralPath $editor -PathType Leaf)) { throw 'UnrealEditor-Cmd.exe is required for native checks. Candidate built but not installed.' }
-    $verification = Join-Path $work 'VerificationProject'
+    $nativeRun = Join-Path $work ('NativeCheck-' + [guid]::NewGuid().ToString('N'))
+    $verification = Join-Path $nativeRun 'VerificationProject'
     $verificationPlugin = Join-Path $verification 'Plugins\TGGGameDesigner'
     New-Item -ItemType Directory -Path $verificationPlugin -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $built 'TGGGameDesigner.uplugin') -Destination $verificationPlugin
     Copy-Item -LiteralPath (Join-Path $built 'Binaries') -Destination $verificationPlugin -Recurse -Force
     $verificationProject = Join-Path $verification 'TGGVerification.uproject'
     @{FileVersion=3; EngineAssociation='5.8'; Plugins=@(@{Name='TGGGameDesigner'; Enabled=$true})} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $verificationProject -Encoding utf8
-    $reports = Join-Path $work 'AutomationReport'
-    $automationLog = Join-Path $work 'Automation.log'
-    $automationStdout = Join-Path $work 'Automation-stdout.log'
-    $automationStderr = Join-Path $work 'Automation-stderr.log'
+    $reports = Join-Path $nativeRun 'AutomationReport'
+    $automationLog = Join-Path $nativeRun 'Automation.log'
+    $automationStdout = Join-Path $nativeRun 'Automation-stdout.log'
+    $automationStderr = Join-Path $nativeRun 'Automation-stderr.log'
     $arguments = '"' + $verificationProject + '" -unattended -NullRHI -nosound -nosplash -NoSourceControl -ExecCmds="Automation RunTests TGG.Business" -TestExit="Automation Test Queue Empty" -ReportExportPath="' + $reports + '" -AbsLog="' + $automationLog + '"'
     Write-Host 'Running native business and save checks in a disposable project (maximum five minutes).'
     $process = Start-Process -FilePath $editor -ArgumentList $arguments -WindowStyle Hidden -RedirectStandardOutput $automationStdout -RedirectStandardError $automationStderr -PassThru
+    # Retain the OS handle while the process is alive; Windows PowerShell can
+    # otherwise lose ExitCode after a non-child process exits. Do not Refresh it.
+    $nativeHandle = $process.Handle
     if (!$process.WaitForExit(300000)) {
         & (Join-Path $env:SystemRoot 'System32\taskkill.exe') /PID $process.Id /T /F | Out-Null
         throw "Native checks timed out. Existing plugin was not changed. Log: $automationLog"
     }
     $process.WaitForExit()
-    $process.Refresh()
     $reportFile = Join-Path $reports 'index.json'
-    if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $reportFile -PathType Leaf)) { throw "Native checks did not finish successfully. Existing plugin was not changed. Log: $automationLog" }
-    Assert-NativeReport $reportFile
+    $nativeExitCode = $process.ExitCode
+    Write-Host "Native process exit status: $nativeExitCode"
+    try { Assert-NativeCompletion $nativeExitCode $reportFile }
+    catch { throw ("Native verification stopped: " + $_.Exception.Message + " Existing plugin was not changed. Log: " + $automationLog) }
     Write-Host 'NATIVE CHECKS PASSED: business transactions and Unreal SaveGame round trip.'
 }
 Assert-EditorClosed

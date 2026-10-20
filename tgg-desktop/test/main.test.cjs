@@ -11,7 +11,7 @@ test('desktop owner, IPC boundary, encrypted settings, provider request and fail
  const invoke=(name,arg,event={sender:window.webContents,senderFrame:frame})=>handlers[name](event,arg);
  assert.equal((await invoke('status')).data.provider,'ollama');
  assert.equal((await invoke('configure',{apiKey:'test',model:'gpt-4.1-mini'})).ok,false);
- for(const name of ['installer-info','installer-open','agent-run','agent-status','agent-apply','check-plan','check-run','recovery-edits','recovery-undo','recovery-export','bundle-review','bundle-restore','workspace-propose','workspace-open','workspace-save','project-review','project-save','remote-export','remote-diagnostics','remote-screenshot'])assert.match((await invoke(name,'unknown')).error,/Unlock/);
+ for(const name of ['create-check','create-generate','create-collect','create-preview','create-discard','create-export','installer-info','installer-open','agent-run','agent-status','agent-apply','check-plan','check-run','recovery-edits','recovery-undo','recovery-export','bundle-review','bundle-restore','workspace-propose','workspace-open','workspace-save','project-review','project-save','remote-export','remote-diagnostics','remote-screenshot'])assert.match((await invoke(name,'unknown')).error,/Unlock/);
  assert.match((await invoke('studio-configure','C:\\TGG Studio\\TGG_Studio.exe')).error,/Unlock/);
  assert.equal((await invoke('unlock',{password:'a secure owner password'})).ok,true);
  assert.equal((await invoke('configure',{apiKey:'test',model:'gpt-4.1-mini'})).ok,true);

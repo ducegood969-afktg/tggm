@@ -6,6 +6,8 @@ For chat without paid API calls, use [local Ollama setup](LOCAL-AI.md) in versio
 
 Version 0.1.15 adds a [local project agent](LOCAL-AGENT.md), reviewed multi-file edits, explicit Test/Build, Stop, and [recovery tools](RECOVERY.md). External OS/Studio applications remain launchers with separate data.
 
+Version 0.1.17 adds [TGG Create](TGG-CREATE.md), a local ComfyUI text-to-image preview with GPU/engine checks and PNG export. A separate installed image engine and compatible checkpoint are required. The read-only `Diagnose-TGG-Create.ps1` helper can inspect common Windows installation locations.
+
 ## Start and test
 
 Use Node.js 24 and the existing checkout; cloud tasks are already isolated, so do not create a worktree unless explicitly requested.
@@ -40,7 +42,7 @@ Setup installs a small rootless Xvfb/keyring environment using signed Debian rep
 
 **No-purchase route:** follow [FREE-RELEASE.md](FREE-RELEASE.md). `npm run dist:unsigned` builds on Windows without Microsoft signing or an Azure subscription. The separate **TGG AI Ultra free Windows preview** workflow tests the installer and provides downloadable artifacts with checksums. Unsigned builds use manual updates and may show Windows security warnings. TGGhub can host the downloads on an existing server; public hosting is not created automatically.
 
-`npm run dist:preview` produces an **unsigned engineering installer** at `dist-preview/TGG-AI-Ultra-Setup-0.1.8-x64.exe`. The Linux build uses electron-builder's native UninstallerReader through a custom packaging target, avoiding Wine's unavailable 32-bit execution. This adapter uses the pinned builder version, changes no installed dependency files, and is separate from production signing. It does not prove the installer runs on Windows. Windows acceptance must pass before distribution.
+`npm run dist:preview` produces an **unsigned engineering installer** at `dist-preview/TGG-AI-Ultra-Setup-0.1.17-x64.exe`. The Linux build uses electron-builder's native UninstallerReader through a custom packaging target, avoiding Wine's unavailable 32-bit execution. This adapter uses the pinned builder version, changes no installed dependency files, and is separate from production signing. It does not prove the installer runs on Windows. Windows acceptance must pass before distribution.
 
 `npm run dist:win` produces a **signed production installer** using Microsoft cloud signing. It requires the validated publisher and signing account settings; missing settings fail closed. See [WINDOWS-RELEASE.md](WINDOWS-RELEASE.md) for Azure OIDC configuration, required accounts, costs, the Windows workflow and secure publication steps. The workflow can also build/test an unsigned installer with `signed=false` before Azure setup. It uploads artifacts without publishing a release.
 

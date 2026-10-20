@@ -1,4 +1,4 @@
-const {app, BrowserWindow, ipcMain, safeStorage, shell, session, utilityProcess, dialog, WebContentsView} = require('electron');
+const {app, BrowserWindow, ipcMain, safeStorage, shell, session, utilityProcess, dialog, WebContentsView, nativeImage} = require('electron');
 const {autoUpdater} = require('electron-updater');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -82,6 +82,14 @@ app.whenReady().then(() => {
   handle('configure', input => {owner(); secureStorage(); const config=validateSettings(input); save({...record,settings:safeStorage.encryptString(JSON.stringify(config)).toString('base64')});return true;});
   handle('studio-configure',async value=>{owner();secureStorage();const executable=await validateStudioPath(value);owner();save({...record,studio:safeStorage.encryptString(executable).toString('base64')});return true;});
   handle('os-configure',async value=>{owner();secureStorage();const executable=await validateOsPath(value);owner();save({...record,os:safeStorage.encryptString(executable).toString('base64')});return true;});
+  const {Creative,probe}=require('./creative.cjs');
+  const creative=new Creative({request:(...args)=>fetch(...args),decode:buffer=>{const image=nativeImage.createFromBuffer(buffer);if(image.isEmpty())throw Error('Image could not be decoded.');return image.toPNG();}});
+  handle('create-check',async()=>{owner();const engines=await Promise.all([probe(8188),probe(8000)]);let graphics=[];try{const info=await app.getGPUInfo('complete');graphics=(info.gpuDevice||[]).map(d=>({name:String(d.deviceString||d.driverVendor||'GPU identity unavailable').slice(0,200),vendorId:d.vendorId,deviceId:d.deviceId}));}catch{}owner();return {engines,graphics,pending:!!creative.job,hasImage:!!creative.image};});
+  handle('create-generate',input=>{owner();idle();return generation(signal=>creative.start(input,signal));});
+  handle('create-collect',()=>{owner();idle();return generation(signal=>creative.collect(signal));});
+  handle('create-preview',()=>{owner();return creative.preview();});
+  handle('create-discard',()=>{owner();idle();creative.job=null;return true;});
+  handle('create-export',async()=>{owner();idle();if(!creative.image)throw Error('Generate an image first.');let selected;selectingProject=true;try{selected=await dialog.showSaveDialog(win,{title:'Export TGG Create image',defaultPath:'TGG-Create.png',filters:[{name:'PNG image',extensions:['png']}]});}finally{selectingProject=false;}if(selected.canceled)return {cancelled:true};owner();fs.writeFileSync(selected.filePath,creative.image.data,{mode:0o600});return {saved:true};});
   handle('local-models',()=>listLocalModels());
   handle('workspace-propose',async input=>{
     owner();if(!input||busy)throw Error('Wait for the current AI request to finish.');

@@ -1,0 +1,52 @@
+{
+  "schema": "tgg.oci.infrastructure.source.v1",
+  "repository": "tggm803sc/tggm",
+  "path": "infra/oci",
+  "status": "APPLY_READY_WAITING_EXTERNAL_OCI_EXECUTION",
+  "candidateSha": "b36596a996558d53daa5ded3e62f2599417cb0e1b87761e8895a908ed915ebd3",
+  "controlShape": "VM.Standard.A1.Flex",
+  "controlDefaults": {
+    "ocpus": 2,
+    "memoryGbs": 12
+  },
+  "adminCidrDefault": null,
+  "gameNodeDefault": false,
+  "paidGameNodeRequiresExplicitAllow": true,
+  "hostAgent8787Public": false,
+  "resourceManagerApply": "NOT_RUN",
+  "controlPublicIp": null,
+  "coolifySetupUrl": null,
+  "liveHostAgentUrl": null,
+  "controlPlaneRepo": "https://github.com/tggm803sc/tggm.git",
+  "controlPlaneCommit": "7c971ec44be0daf00d81807f588db264239f5fe4",
+  "hostAgentBootstrap": "AUTO_INSTALL_PROXY_REACHABLE_BIND",
+  "hostAgentRemoteTokenProvisioned": false,
+  "hostAgentHttpsProvisioned": false,
+  "applyHandoffRequiresControlPlaneCommit": true,
+  "hostAgentBind": "0.0.0.0",
+  "controlIngress8787": "CLOSED",
+  "coolifyHttpsFinalizer": "READY",
+  "resourceManagerSource": {
+    "type": "GITHUB",
+    "repository": "https://github.com/tggm803sc/tggm.git",
+    "branch": "oci-production-v1",
+    "workingDirectory": "infra/oci",
+    "frozenAtCommit": "6e2043c29cf0d5a31315021aa8ea86f0fd2c89e7",
+    "mutableMainNotRequired": true
+  },
+  "applyContract": "infra/oci/RESOURCE_MANAGER_APPLY.json",
+  "operatorHandoff": "infra/oci/APPLY-NOW.md",
+  "quickDeploy": {
+    "branch": "oci-stack-v1",
+    "rootTerraform": true,
+    "branchCommit": "91e7d52d953fe7e11345d284b284b01c831125c6",
+    "zipUrl": "https://github.com/tggm803sc/tggm/archive/refs/heads/oci-stack-v1.zip",
+    "deployUrl": "https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/tggm803sc/tggm/archive/refs/heads/oci-stack-v1.zip"
+  },
+  "runtimeIngress8787": "CLOSED",
+  "adminCidrGlobalReject": true,
+  "hclMultilineNormalized": true,
+  "planFirstRequired": true,
+  "autoApplyOnStackCreation": false,
+  "planFirstRunbook": "infra/oci/RESOURCE-MANAGER-PLAN-FIRST.md"
+}

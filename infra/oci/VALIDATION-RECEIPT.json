@@ -1,0 +1,89 @@
+{
+  "schema": "tgg.oci.validation.receipt.v1",
+  "validatedBranches": {
+    "quickDeploy": {
+      "branch": "oci-stack-v1",
+      "commit": "91e7d52d953fe7e11345d284b284b01c831125c6",
+      "connectorPreflight": "PASS",
+      "issues": []
+    },
+    "gitBacked": {
+      "branch": "oci-production-v1",
+      "commit": "6e2043c29cf0d5a31315021aa8ea86f0fd2c89e7",
+      "connectorPreflight": "PASS",
+      "issues": []
+    }
+  },
+  "checks": {
+    "requiredFiles": "PASS",
+    "adminGlobalCidrRejected": "PASS",
+    "paidGameNodeExplicitAllow": "PASS",
+    "controlIngress8787Closed": "PASS",
+    "runtimeIngress8787Closed": "PASS",
+    "exactControlPlaneCheckout": "PASS",
+    "hostAgentSecretBoundary": "PASS",
+    "httpsFinalizerMarkers": "PASS",
+    "singleLineHclRisk": "PASS"
+  },
+  "terraformValidate": "PASS",
+  "terraformPlan": "NOT_RUN_MISSING_CREDENTIALS",
+  "resourceManagerApply": "NOT_RUN",
+  "r232PromotionExecuted": false,
+  "status": "TERRAFORM_VALIDATE_PASS_PLAN_BLOCKED_MISSING_CREDENTIALS",
+  "terraformVersion": "1.16.4",
+  "validationEngine": "GitHub Actions",
+  "workflow": {
+    "runId": 36218441786,
+    "workflow": "TGG OCI Terraform Validate",
+    "event": "pull_request",
+    "pr": 1,
+    "conclusion": "success",
+    "headSha": "681eb1dfce8c6c6319a27700ce9df26381a78d35",
+    "jobs": [
+      {
+        "name": "frozen-git-backed",
+        "jobId": 108338993534,
+        "conclusion": "success"
+      },
+      {
+        "name": "frozen-one-click",
+        "jobId": 108338993664,
+        "conclusion": "success"
+      },
+      {
+        "name": "main-infra",
+        "jobId": 108338993725,
+        "conclusion": "success"
+      }
+    ],
+    "steps": [
+      "terraform version",
+      "terraform fmt -check -recursive -diff",
+      "terraform init -backend=false -input=false -no-color",
+      "terraform validate -no-color"
+    ]
+  },
+  "planWorkflow": ".github/workflows/tgg-oci-terraform-plan.yml",
+  "planWorkflowState": "BLOCKED_MISSING_GITHUB_SECRETS",
+  "planProbe": {
+    "runId": 36220268963,
+    "jobId": 108344073113,
+    "conclusion": "failure",
+    "failedStep": "Verify required OCI secrets are present",
+    "missingSecrets": [
+      "OCI_TENANCY_OCID",
+      "OCI_COMPARTMENT_OCID",
+      "OCI_REGION",
+      "OCI_ADMIN_CIDR",
+      "OCI_USER_OCID",
+      "OCI_FINGERPRINT",
+      "OCI_PRIVATE_KEY"
+    ],
+    "terraformInit": "SKIPPED",
+    "terraformValidate": "SKIPPED_IN_PLAN_WORKFLOW",
+    "terraformPlan": "SKIPPED",
+    "resourceManagerApply": "NOT_RUN"
+  },
+  "planVerifier": "infra/oci/verify-plan-json.py",
+  "planVerificationState": "NOT_RUN_MISSING_CREDENTIALS"
+}

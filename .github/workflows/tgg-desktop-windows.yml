@@ -1,0 +1,73 @@
+name: TGG AI Ultra Windows installer
+on:
+  workflow_dispatch:
+    inputs:
+      signed:
+        description: Build a trusted release using Microsoft cloud signing
+        required: true
+        default: true
+        type: boolean
+permissions:
+  contents: read
+jobs:
+  installer:
+    runs-on: windows-latest
+    environment: windows-release
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: tgg-desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tgg-desktop/package-lock.json
+      - run: npm ci
+      - name: Prepare verified bundled Git for Source and packaging
+        run: npm run prepare:git
+      - run: npm test
+      - run: node scripts/smoke.cjs
+      - name: Azure login with short-lived GitHub identity
+        if: inputs.signed
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.TGG_AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.TGG_AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.TGG_AZURE_SUBSCRIPTION_ID }}
+      - name: Install Microsoft Artifact Signing module
+        if: inputs.signed
+        shell: pwsh
+        run: Install-Module ArtifactSigning -RequiredVersion 0.1.20 -Scope CurrentUser -Force -Repository PSGallery
+      - name: Build signed installer
+        if: inputs.signed
+        run: npm run dist:win
+        env:
+          TGG_WINDOWS_PUBLISHER: ${{ vars.TGG_WINDOWS_PUBLISHER }}
+          TGG_UPDATE_URL: ${{ vars.TGG_UPDATE_URL }}
+          TGG_AZURE_SIGNING_ENDPOINT: ${{ vars.TGG_AZURE_SIGNING_ENDPOINT }}
+          TGG_AZURE_SIGNING_ACCOUNT: ${{ vars.TGG_AZURE_SIGNING_ACCOUNT }}
+          TGG_AZURE_CERTIFICATE_PROFILE: ${{ vars.TGG_AZURE_CERTIFICATE_PROFILE }}
+      - name: Build unsigned engineering installer
+        if: ${{ !inputs.signed }}
+        run: npx electron-builder --win nsis --x64 --publish never -c.win.signExecutable=false
+      - name: Verify release signatures and updater publisher checks
+        if: inputs.signed
+        run: node scripts/verify-windows.cjs
+        env:
+          TGG_WINDOWS_PUBLISHER: ${{ vars.TGG_WINDOWS_PUBLISHER }}
+      - name: Test installer and installed application
+        shell: pwsh
+        run: ./scripts/install-smoke.ps1 -SignedBuild:$${{ inputs.signed }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tgg-ai-ultra-windows-signed-${{ inputs.signed }}
+          path: |
+            tgg-desktop/dist/*.exe
+            tgg-desktop/dist/*.blockmap
+            tgg-desktop/dist/latest.yml
+            tgg-desktop/test-results/*
+          if-no-files-found: error

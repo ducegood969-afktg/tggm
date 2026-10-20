@@ -1,0 +1,273 @@
+{
+  "schema": "tgg.higgsfield.provider-catalog.v1",
+  "owner": "TGG",
+  "service": "tgg-higgsfield",
+  "verified_source": "connected-higgsfield-model-catalog",
+  "verified_on": "2026-09-26",
+  "runtime_note": "Catalog is verified from the connected Higgsfield account. The repository worker still renders through tgg-creative-engine unless a provider bridge is configured at runtime.",
+  "modes": {
+    "image": [
+      {
+        "id": "soul_2",
+        "name": "Higgsfield Soul 2.0",
+        "use": "realistic avatars, fashion/editorial characters"
+      },
+      {
+        "id": "soul_cinematic",
+        "name": "Soul Cinema",
+        "use": "cinematic character/concept stills"
+      },
+      {
+        "id": "cinematic_studio_2_5",
+        "name": "Cinema Studio Image 2.5",
+        "use": "cinematic stills up to 4K"
+      },
+      {
+        "id": "soul_location",
+        "name": "Soul Location",
+        "use": "game environments and locations"
+      },
+      {
+        "id": "autosprite",
+        "name": "AutoSprite Animation",
+        "use": "game-ready sprite sheets from character images"
+      },
+      {
+        "id": "nano_banana_pro",
+        "name": "Nano Banana Pro",
+        "use": "high-quality environment/concept/reference stills up to 4K"
+      },
+      {
+        "id": "soul_cast",
+        "name": "Soul Cast",
+        "use": "consistent cinematic character identity"
+      },
+      {
+        "id": "flux_2",
+        "name": "FLUX.2",
+        "use": "precise prompt-adherent concept art and reference-driven game asset imagery"
+      },
+      {
+        "id": "seedream_v5_pro",
+        "name": "Seedream 5.0 Pro",
+        "use": "2K instruction-based concept generation and reference editing"
+      },
+      {
+        "id": "recraft_v4_1",
+        "name": "Recraft V4.1",
+        "use": "logos, icons, vector/UI assets, controlled mockups and branded game graphics"
+      },
+      {
+        "id": "marketing_studio_image",
+        "name": "Marketing Studio Image",
+        "use": "promotional game/social campaign stills"
+      }
+    ],
+    "video": [
+      {
+        "id": "cinematic_studio_3_0",
+        "name": "Cinema Studio Video 3.0",
+        "use": "cinema-grade game cinematics and trailers"
+      },
+      {
+        "id": "cinematic_studio_video_v2",
+        "name": "Cinema Studio Video",
+        "use": "controlled cinematic camera/color sequences"
+      },
+      {
+        "id": "marketing_studio_video",
+        "name": "Marketing Studio",
+        "use": "creator/game promotional social video"
+      },
+      {
+        "id": "kling3_0",
+        "name": "Kling v3.0",
+        "use": "multi-shot cinematic motion, motion transfer, trailer sequences"
+      },
+      {
+        "id": "grok_video_v15",
+        "name": "Grok Video 1.5",
+        "use": "multimodal image-to-video and reference-driven camera motion"
+      },
+      {
+        "id": "seedance_2_5",
+        "name": "Seedance 2.5",
+        "use": "multimodal reference video, edit, extension and long-form motion"
+      },
+      {
+        "id": "kling2_6",
+        "name": "Kling 2.6 Video",
+        "use": "cinematic motion with advanced physics"
+      },
+      {
+        "id": "seedance1_5",
+        "name": "Seedance 1.5 Pro",
+        "use": "reliable image-to-video motion with optional audio"
+      }
+    ],
+    "audio": [
+      {
+        "id": "seed_audio",
+        "name": "Seed Audio 1.0",
+        "use": "voice and general audio synthesis"
+      },
+      {
+        "id": "sonilo_music",
+        "name": "Sonilo Music",
+        "use": "game music generation"
+      },
+      {
+        "id": "mirelo_text_to_audio",
+        "name": "Mirelo Text to Audio",
+        "use": "game SFX generation"
+      },
+      {
+        "id": "inworld_text_to_speech",
+        "name": "Inworld Text to Speech",
+        "use": "game dialogue and NPC voice"
+      }
+    ],
+    "3d": [
+      {
+        "id": "sam_3_3d",
+        "name": "SAM 3 3D Objects",
+        "use": "single-image object to textured GLB"
+      },
+      {
+        "id": "image_to_3d",
+        "name": "Image to 3D",
+        "use": "textured/riggable/animated GLB generation"
+      },
+      {
+        "id": "sam_3_3d_body",
+        "name": "3D Body",
+        "use": "human body and pose reconstruction to GLB"
+      },
+      {
+        "id": "meshy_v7_image_to_3d",
+        "name": "Meshy 7 Image to 3D",
+        "use": "textured/PBR/riggable/animated GLB generation"
+      },
+      {
+        "id": "meshy_v5_remesh",
+        "name": "Meshy 5 Remesh",
+        "use": "retopology and remesh of existing 3D assets"
+      },
+      {
+        "id": "3d_rigging",
+        "name": "3D Rigging",
+        "use": "skeleton and animation pass for generated GLB characters"
+      },
+      {
+        "id": "tripo_h3_1_image_to_3d",
+        "name": "Tripo H3.1 Image to 3D",
+        "use": "high-detail textured/PBR GLB from one image"
+      },
+      {
+        "id": "tripo_h3_1_multiview_to_3d",
+        "name": "Tripo H3.1 Multiview to 3D",
+        "use": "higher-accuracy GLB reconstruction from 2-4 views"
+      },
+      {
+        "id": "multi_image_to_3d",
+        "name": "Multi-Image to 3D",
+        "use": "1-4 view reconstruction to GLB with optional texturing, PBR, rigging and animation"
+      }
+    ]
+  },
+  "routing_defaults": {
+    "avatar_image": "soul_2",
+    "cinematic_image": "cinematic_studio_2_5",
+    "environment_image": "nano_banana_pro",
+    "sprite": "autosprite",
+    "cinematic_video": "cinematic_studio_video_v2",
+    "voice": "inworld_text_to_speech",
+    "sfx": "mirelo_text_to_audio",
+    "music": "sonilo_music",
+    "object_3d": "sam_3_3d",
+    "character_3d": "meshy_v7_image_to_3d",
+    "cinematic_motion": "kling3_0",
+    "character_body_3d": "sam_3_3d_body",
+    "remesh_3d": "meshy_v5_remesh",
+    "rig_3d": "3d_rigging",
+    "precision_concept_image": "flux_2",
+    "reference_edit_image": "seedream_v5_pro",
+    "brand_vector_asset": "recraft_v4_1",
+    "marketing_image": "marketing_studio_image",
+    "marketing_video": "marketing_studio_video",
+    "reliable_motion": "seedance1_5",
+    "multi_view_3d": "multi_image_to_3d"
+  },
+  "game_asset_profile": {
+    "schema": "tgg.higgsfield.game-asset-profile.v4",
+    "verified_source": "connected-higgsfield-account-live-recommendation-and-search",
+    "verified_on": "2026-09-26",
+    "preferred_routes": {
+      "realistic_character_image": "soul_2",
+      "cinematic_character_image": "soul_cinematic",
+      "consistent_character_identity": "soul_cast",
+      "environment_concept_image": "soul_location",
+      "high_resolution_concept_image": "nano_banana_pro",
+      "sprite_animation": "autosprite",
+      "cinematic_video": "cinematic_studio_3_0",
+      "cinematic_motion": "kling3_0",
+      "fast_cinematic_motion": "kling2_6",
+      "multimodal_video": "seedance_2_5",
+      "alternate_multimodal_video": "grok_video_v15",
+      "human_body_3d": "sam_3_3d_body",
+      "object_3d": "sam_3_3d",
+      "character_or_prop_3d": "meshy_v7_image_to_3d",
+      "multi_view_3d": "multi_image_to_3d",
+      "alternate_image_to_3d": "tripo_h3_1_image_to_3d",
+      "remesh_retopology": "meshy_v5_remesh",
+      "rig_and_animation": "3d_rigging"
+    },
+    "fallbacks": {
+      "realistic_character_image": [
+        "soul_cinematic"
+      ],
+      "environment_concept_image": [
+        "nano_banana_pro",
+        "cinematic_studio_2_5"
+      ],
+      "cinematic_video": [
+        "cinematic_studio_video_v2",
+        "kling3_0"
+      ],
+      "cinematic_motion": [
+        "kling2_6",
+        "seedance_2_5"
+      ],
+      "character_or_prop_3d": [
+        "meshy_v7_image_to_3d",
+        "image_to_3d",
+        "tripo_h3_1_image_to_3d"
+      ]
+    },
+    "unreal_handoff": {
+      "preferred_mesh_format": "glb",
+      "pbr_for_final_assets": true,
+      "rigging_for_characters": true,
+      "canonical_character_pose": "a-pose",
+      "recommended_target_polycount": 30000,
+      "import_state": "GENERATED_ASSET_MUST_BE_VALIDATED_BEFORE_UNREAL_PRODUCTION_USE"
+    }
+  },
+  "asset_ingest_contract": "tgg-higgsfield/asset-ingest.schema.json",
+  "asset_ingest_helper": "tgg-higgsfield/asset-ingest.mjs",
+  "live_route_refresh": {
+    "status": "PASS",
+    "verified_on": "2026-09-26",
+    "verified_models": [
+      "cinematic_studio_3_0",
+      "soul_location",
+      "meshy_v7_image_to_3d",
+      "multi_image_to_3d",
+      "sam_3_3d",
+      "3d_rigging"
+    ],
+    "account_identity_persisted": false,
+    "provider_credentials_persisted": false,
+    "production_generation_claim": false
+  }
+}

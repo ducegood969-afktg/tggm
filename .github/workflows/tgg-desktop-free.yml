@@ -1,0 +1,50 @@
+name: TGG AI Ultra free Windows preview
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/tgg-ai-ultra-windows-release]
+    paths:
+      - '.github/workflows/tgg-desktop-free.yml'
+      - 'tgg-desktop/**'
+      - 'tgg-source/**'
+permissions:
+  contents: read
+jobs:
+  windows-preview:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: tgg-desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tgg-desktop/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run prepare:git
+      - run: npm test
+      - run: npm run smoke
+      - name: Build unsigned Windows installer without a signing account
+        run: npm run dist:unsigned
+      - name: Test install, owner settings, Source and uninstall on Windows
+        shell: pwsh
+        run: ./scripts/install-smoke.ps1 -SignedBuild:$false
+      - name: Create download checksums and release notice
+        shell: pwsh
+        run: |
+          Get-ChildItem dist -Filter '*.exe' | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            Set-Content -LiteralPath ($_.FullName + '.sha256') -Value "$hash  $($_.Name)" -Encoding ascii
+          }
+          Set-Content -Path dist/READ-ME-FIRST.txt -Value 'Unsigned engineering preview. Windows may show security warnings. Automatic updates are disabled. Review the source and verify the SHA-256 before deciding to install. No Microsoft signing subscription is required.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TGG-AI-Ultra-free-Windows-preview
+          path: |
+            tgg-desktop/dist/*.exe
+            tgg-desktop/dist/*.sha256
+            tgg-desktop/dist/READ-ME-FIRST.txt
+            tgg-desktop/test-results/*
+          if-no-files-found: error

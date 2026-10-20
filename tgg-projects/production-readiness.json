@@ -1,0 +1,149 @@
+{
+  "schema": "tgg.production.readiness.v1",
+  "repository": "tggm803sc/tggm",
+  "activeDevelopment": {
+    "branch": "tgg-world-mega-1000x",
+    "branchHead": "3b68669787d8b450caea4b78bde9c91c8741ffff",
+    "track": "whole-world-development-v200",
+    "overlay": "1000x-v200",
+    "cleaner": "187",
+    "runtimeManifest": "game/mega-1000x/runtime/runtime-manifest-v200.json"
+  },
+  "frozenProduction": {
+    "release": "whole-world-consolidated-v135",
+    "commit": "ea27aca634f3c2b92fc430a232f5f8d0be4fba23",
+    "promotion": "NOT_YET_PROMOTED"
+  },
+  "certification": {
+    "upstreamRuntimeR224": {
+      "sha256": "faf8a6a89049d32af13df5f4e1cbd65ee2ba7742e63989790ab2abc0fce054fa",
+      "integrationSmoke": "PASS_100",
+      "liveProof": "PENDING"
+    },
+    "activationCandidateR227": {
+      "sha256": "b36596a996558d53daa5ded3e62f2599417cb0e1b87761e8895a908ed915ebd3",
+      "releaseStatus": "CANDIDATE_NOT_PROMOTED",
+      "liveProof": "PENDING"
+    },
+    "activationV21": {
+      "status": "PRE_R232_OFFLINE_READY",
+      "liveExecution": "NOT_RUN",
+      "r232": "NOT_EXECUTED"
+    }
+  },
+  "corePromotionBlockers": [
+    "OCI_RESOURCE_MANAGER_APPLY_NOT_RUN",
+    "CONTROL_PUBLIC_IP_NOT_ISSUED",
+    "HOST_AGENT_REMOTE_TOKEN_NOT_CONFIGURED",
+    "COOLIFY_TRAEFIK_HTTPS_ROUTE_NOT_CONFIGURED",
+    "HTTPS_HOST_AGENT_NOT_DISCOVERED",
+    "R224_LIVE_PROOF_PENDING",
+    "R227_FAILED_OR_NO_JOB_WORKFLOWS_NOT_REPLACED_BY_FRESH_PASS",
+    "HOST_AGENT_HANDSHAKE_PENDING",
+    "BROWSER_SMOKE_PENDING",
+    "LIVEVIEWER_PLAYTEST_PENDING",
+    "CORE_WORKER_HEALTH_PENDING",
+    "SAME_SHA_PROOF_PENDING",
+    "LIVE_ACCEPTANCE_BOUNDARY_PENDING",
+    "FRESH_R11_EVIDENCE_PENDING",
+    "R231_SNAPSHOT_PENDING",
+    "R232_NOT_EXECUTED"
+  ],
+  "parallelProductBlockers": {
+    "recordingStudio": {
+      "release": "V1742 ONE LIVE GATE",
+      "staticGate": "PASS",
+      "liveGate": "AUTHENTICATED_BLOGGER_WRITER_AND_REAL_BROWSER_NETWORK_RUNNER_REQUIRED",
+      "blocksWorldR232": false
+    }
+  },
+  "status": "BLOCKED_PENDING_LIVE_INFRASTRUCTURE_AND_EVIDENCE",
+  "infrastructureBoundary": {
+    "status": "APPLY_READY_WAITING_EXTERNAL_OCI_EXECUTION",
+    "applyContract": "infra/oci/RESOURCE_MANAGER_APPLY.json",
+    "branch": "oci-production-v1",
+    "workingDirectory": "infra/oci",
+    "frozenCommit": "7d4b0f0d8cbc72f4f89cf1515c3bf30be9171748"
+  },
+  "preR232Reconciler": {
+    "script": "tgg-ci/reconcile-pre-r232.py",
+    "schema": "tgg-ci/pre-r232-readiness.schema.json",
+    "requiredEvidence": [
+      "OCI_APPLY_HANDOFF.json",
+      "https-finalization.json",
+      "tgg.live.readiness.v1 result",
+      "R231 intake receipt"
+    ],
+    "emits": "PRE_R232_READY only when every required live binding passes",
+    "executesR232": false
+  },
+  "preR232Bridge": {
+    "verifier": "tgg-ci/verify-pre-r232-readiness.py",
+    "bridge": "tgg-ci/prepare-r232-from-live-readiness.sh",
+    "protectedV21PrepareScript": "tgg-activation/prepare-r232-promotion.sh",
+    "requiresStatus": "PRE_R232_READY",
+    "preservesSourceLock": true,
+    "executesR232": false
+  },
+  "liveActivationCheckpoint": {
+    "ingester": "tgg-ci/ingest-live-activation-checkpoint.py",
+    "schema": "tgg-ci/live-activation-checkpoint.schema.json",
+    "accepts": [
+      "tgg.pre-r232.readiness.v1",
+      "optional tgg.r232.promotion.request.v3"
+    ],
+    "statuses": [
+      "PRE_R232_READY",
+      "PRE_R232_REQUEST_PREPARED"
+    ],
+    "updatesProductionRelease": false,
+    "executesR232": false
+  },
+  "infrastructureValidation": {
+    "receipt": "infra/oci/VALIDATION-RECEIPT.json",
+    "connectorPreflight": "PASS_BOTH_FROZEN_BRANCHES",
+    "terraformValidate": "PASS",
+    "terraformPlan": "NOT_RUN_MISSING_CREDENTIALS",
+    "resourceManagerApply": "NOT_RUN",
+    "terraformVersion": "1.16.4",
+    "workflowRun": 36218441786,
+    "workflowConclusion": "success",
+    "planWorkflow": ".github/workflows/tgg-oci-terraform-plan.yml",
+    "planWorkflowState": "BLOCKED_MISSING_GITHUB_SECRETS",
+    "planRequiresSecrets": [
+      "OCI_TENANCY_OCID",
+      "OCI_COMPARTMENT_OCID",
+      "OCI_REGION",
+      "OCI_ADMIN_CIDR",
+      "OCI_USER_OCID",
+      "OCI_FINGERPRINT",
+      "OCI_PRIVATE_KEY"
+    ],
+    "planProbeRun": 36220268963,
+    "planProbeJob": 108344073113,
+    "missingSecrets": [
+      "OCI_TENANCY_OCID",
+      "OCI_COMPARTMENT_OCID",
+      "OCI_REGION",
+      "OCI_ADMIN_CIDR",
+      "OCI_USER_OCID",
+      "OCI_FINGERPRINT",
+      "OCI_PRIVATE_KEY"
+    ],
+    "credentialSetup": "infra/oci/CREDENTIALS-SETUP.md",
+    "credentialBoundary": "infra/oci/CREDENTIAL-BOUNDARY.json",
+    "planCredentialsState": "MISSING",
+    "resourceManagerAlternative": "READY",
+    "resourceManagerPlanFirst": "REQUIRED",
+    "resourceManagerAutoApply": false,
+    "resourceManagerPlanRunbook": "infra/oci/RESOURCE-MANAGER-PLAN-FIRST.md",
+    "planVerifier": "infra/oci/verify-plan-json.py",
+    "planVerificationSchema": "infra/oci/plan-verification.schema.json",
+    "planVerificationState": "NOT_RUN_MISSING_CREDENTIALS",
+    "planArtifacts": [
+      "tgg-plan.txt",
+      "tgg-plan.json",
+      "tgg-plan-verification.json"
+    ]
+  }
+}

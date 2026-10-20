@@ -1,0 +1,169 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TGG Higgsfield API",
+    "version": "2.0.0",
+    "description": "TGG-owned multimodal creative job service with verified Higgsfield provider catalog and TGG Projects integration."
+  },
+  "servers": [
+    {
+      "url": "{baseUrl}",
+      "variables": {
+        "baseUrl": {
+          "default": "http://127.0.0.1:10040"
+        }
+      }
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "higgsfieldHealth",
+        "responses": {
+          "200": {
+            "description": "Healthy"
+          }
+        }
+      }
+    },
+    "/v1/jobs": {
+      "get": {
+        "operationId": "listCreativeJobs",
+        "responses": {
+          "200": {
+            "description": "Jobs"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCreativeJob",
+        "responses": {
+          "202": {
+            "description": "Queued"
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}": {
+      "get": {
+        "operationId": "getCreativeJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateCreativeJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/cancel": {
+      "post": {
+        "operationId": "cancelCreativeJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled"
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/retry": {
+      "post": {
+        "operationId": "retryCreativeJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Retried"
+          }
+        }
+      }
+    },
+    "/v1/presets": {
+      "get": {
+        "operationId": "listCreativePresets",
+        "summary": "List TGG-native creative presets",
+        "responses": {
+          "200": {
+            "description": "Preset catalog"
+          }
+        }
+      }
+    },
+    "/v1/engine/health": {
+      "get": {
+        "operationId": "creativeEngineHealth",
+        "summary": "Check the local TGG creative render engine",
+        "responses": {
+          "200": {
+            "description": "Engine health"
+          }
+        }
+      }
+    },
+    "/v1/provider/catalog": {
+      "get": {
+        "operationId": "listHiggsfieldProviderCatalog",
+        "summary": "List the verified TGG Higgsfield provider/model catalog",
+        "responses": {
+          "200": {
+            "description": "Verified provider catalog"
+          }
+        }
+      }
+    },
+    "/v1/provider/game-assets": {
+      "get": {
+        "summary": "Get the verified TGG World Higgsfield game-asset routing profile",
+        "responses": {
+          "200": {
+            "description": "Verified TGG World game-asset profile"
+          }
+        }
+      }
+    }
+  }
+}

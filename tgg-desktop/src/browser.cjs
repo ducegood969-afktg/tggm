@@ -1,0 +1,17 @@
+const path=require('node:path');
+function browserUrl(value){if(typeof value!=='string'||value.length>4096)throw Error('Enter a website address.');const text=value.trim();const url=new URL(/^[a-z][a-z\d+.-]*:/i.test(text)?text:'https://'+text);if(url.protocol!=='https:'||url.username||url.password)throw Error('TGG Browser accepts HTTPS websites without embedded credentials.');return url.href;}
+function createBrowser({BrowserWindow,WebContentsView,session,ipcMain}){
+ const partition='persist:tgg-browser';const browsing=session.fromPartition(partition);browsing.setPermissionRequestHandler((_wc,_permission,done)=>done(false));browsing.setPermissionCheckHandler(()=>false);browsing.on('will-download',event=>event.preventDefault());
+ const win=new BrowserWindow({show:!process.argv.includes('--tgg-smoke-hidden'),title:'TGG Browser',width:1200,height:850,backgroundColor:'#0c1110',webPreferences:{offscreen:process.argv.includes('--tgg-smoke-hidden'),backgroundThrottling:!process.argv.includes('--tgg-smoke-hidden'),preload:path.join(__dirname,'browser-preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
+ const view=new WebContentsView({webPreferences:{partition,nodeIntegration:false,contextIsolation:true,sandbox:true}});win.contentView.addChildView(view);const web=view.webContents;
+ function layout(){const [width,height]=win.getContentSize();view.setBounds({x:0,y:100,width,height:Math.max(0,height-100)});}layout();win.on('resize',layout);
+ const channel='tgg-browser-'+win.id;win.webContents.once('did-finish-load',()=>win.webContents.send('browser-channel',channel));
+ const status=message=>{if(!win.isDestroyed())win.webContents.send('browser-state',{url:web.getURL(),back:web.navigationHistory.canGoBack(),forward:web.navigationHistory.canGoForward(),message});};
+ function navigate(value){const url=browserUrl(value);web.loadURL(url).catch(()=>status('Could not load this website. You can try your normal browser.'));return true;}
+ web.setWindowOpenHandler(({url})=>{try{navigate(url);}catch{}return {action:'deny'};});
+ const check=(event,url)=>{try{browserUrl(url);}catch{event.preventDefault();status('This address is not an HTTPS website.');}};web.on('will-navigate',check);web.on('will-redirect',check);web.on('did-navigate',()=>status('Website loaded.'));web.on('did-navigate-in-page',()=>status('Website loaded.'));web.on('did-fail-load',(_event,code,_desc,_url,isMain)=>{if(isMain&&code!==-3)status('Website failed to load. Try your normal browser.');});
+ ipcMain.handle(channel,(event,{action,value}={})=>{if(event.sender!==win.webContents||event.senderFrame!==win.webContents.mainFrame)return {ok:false,error:'Untrusted caller'};try{if(action==='go')navigate(value);else if(action==='back'&&web.navigationHistory.canGoBack())web.navigationHistory.goBack();else if(action==='forward'&&web.navigationHistory.canGoForward())web.navigationHistory.goForward();else if(action==='reload')web.reload();else if(action==='stop')web.stop();else if(action!=='back'&&action!=='forward')throw Error('Unknown browser action');return {ok:true};}catch(error){return {ok:false,error:error.message};}});
+ win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',event=>event.preventDefault());win.loadFile(path.join(__dirname,'browser.html'));
+ win.on('closed',()=>{ipcMain.removeHandler(channel);web.close();});return win;
+}
+module.exports={browserUrl,createBrowser};

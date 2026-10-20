@@ -1,0 +1,222 @@
+const { _electron: electron } = require('playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+(async () => {
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'tgg-ui-'));
+  let application;
+  try {
+    const linux = process.platform === 'linux';
+    const launchOptions={executablePath:process.env.TGG_TEST_EXE || require('electron'),
+      args:[...(linux ? ['--disable-setuid-sandbox','--password-store=gnome-libsecret'] : []), `--user-data-dir=${profile}`, ...(process.env.TGG_SMOKE_HIDDEN==='1'?['--tgg-smoke-hidden']:[]),
+        ...(!process.env.TGG_TEST_EXE ? [path.resolve(__dirname,'..')] : [])],
+      chromiumSandbox:true, timeout:45000};
+    application=await electron.launch(launchOptions);
+    const page = await application.firstWindow();page.setDefaultTimeout(30000);page.on('dialog',dialog=>dialog.accept().catch(()=>{}));
+    const errors=[]; page.on('pageerror',error=>errors.push(error.message));
+    await page.waitForSelector('#notice');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('create your local owner'));
+    const secure = await application.evaluate(({safeStorage,BrowserWindow})=>({
+      encrypted:safeStorage.isEncryptionAvailable(),
+      backend:process.platform==='linux'?safeStorage.getSelectedStorageBackend():'windows-dpapi',
+      sandbox:BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox
+    }));
+    assert.equal(secure.encrypted,true);assert.notEqual(secure.backend,'basic_text');assert.equal(secure.sandbox,true);
+    // Source starts its bundled backend and opens inside the app, without a website URL.
+    const sourceOpened=application.waitForEvent('window',{timeout:30000});
+    await page.locator('.sidebar [data-service=source]').click();
+    const source=await sourceOpened;
+    await source.waitForFunction(()=>document.querySelector('#repoCount')?.textContent==='0');
+    assert.equal(await source.evaluate(()=>typeof require),'undefined');
+    assert.equal(await source.evaluate(()=>document.cookie.includes('tgg_source_session')),false,'Source session must be HTTP-only');
+    assert.equal(await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().every(window=>window.webContents.getLastWebPreferences().sandbox===true)),true);
+    await source.fill('#newRepo','desktop-smoke');
+    await source.locator('button').filter({hasText:/^Create$/}).click();
+    await source.waitForFunction(()=>document.querySelector('#repoCount').textContent==='1');
+    assert.match(await source.locator('#repos').textContent(),/desktop-smoke/);
+    await source.close();
+    await page.click('#owner-tab');
+    await page.fill('#password','tgg smoke owner password');
+    await page.click('#unlock-form button[type=submit]');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('unlocked'));
+    const createAppData=path.join(profile,'create-app-data');const createModels=path.join(profile,'create-models');const createConfig=path.join(createAppData,'Comfy Desktop','instance-model-paths','inst-smoke.yaml');fs.mkdirSync(path.dirname(createConfig),{recursive:true});fs.writeFileSync(createConfig,`comfy.desktop_0:\n  base_path: '${createModels}'\n  'checkpoints': 'checkpoints/'\n`);
+    const createSource=path.join(profile,'fixture.safetensors');const tensorHeader=Buffer.from(JSON.stringify({'model.diffusion_model.test':{dtype:'F32',data_offsets:[0,4]},'first_stage_model.test':{dtype:'F32',data_offsets:[4,8]},'cond_stage_model.test':{dtype:'F32',data_offsets:[8,12]}}));const tensorLength=Buffer.alloc(8);tensorLength.writeBigUInt64LE(BigInt(tensorHeader.length));fs.writeFileSync(createSource,Buffer.concat([tensorLength,tensorHeader,Buffer.alloc(1024*1024)]));
+    await application.evaluate(({app,dialog},fixture)=>{global.__createAppData=app.getPath('appData');app.setPath('appData',fixture.appData);global.__createConfig=fixture.config;global.__createModelsReady=false;global.__createOpenDialog=dialog.showOpenDialog;dialog.showOpenDialog=async()=>({canceled:false,filePaths:[fixture.source]});},{appData:createAppData,config:createConfig,source:createSource});
+    // Local image inference is mocked here; native PNG decoding/export and IPC are real.
+    await application.evaluate(({nativeImage})=>{global.__beforeCreateFetch=global.fetch;global.fetch=async(url,options={})=>{url=String(url);if(!url.startsWith('http://127.0.0.1:8188')&&!url.startsWith('http://127.0.0.1:8000'))return global.__beforeCreateFetch(url,options);const json=value=>new Response(JSON.stringify(value));if(url.endsWith('/system_stats'))return json({system:{argv:['ComfyUI\\main.py','--extra-model-paths-config',global.__createConfig]},devices:[{name:'Smoke fixture GPU',vram_total:8589934592}]});if(url.includes('/object_info/'))return json({CheckpointLoaderSimple:{input:{required:{ckpt_name:[global.__createModelsReady?['fixture.safetensors']:[]]}}}});if(url.endsWith('/prompt')){global.__createPrefix=JSON.parse(options.body).prompt['9'].inputs.filename_prefix;return json({prompt_id:'11111111-1111-4111-8111-111111111111'});}if(url.includes('/history/'))return json({'11111111-1111-4111-8111-111111111111':{outputs:{'9':{images:[{filename:global.__createPrefix+'_00001_.png',type:'output',subfolder:''}]}}}});if(url.includes('/view?'))return new Response(nativeImage.createFromBitmap(Buffer.from([120,180,90,255]),{width:1,height:1}).toPNG());throw Error('Unexpected creative fixture URL');};});
+    await page.click('#create-tab');await page.click('#create-check');await page.waitForFunction(()=>document.querySelector('#create-health').textContent.includes('Smoke fixture GPU'));
+    assert.equal(await page.locator('#create-generate').isDisabled(),true);await page.click('#create-install');await page.waitForFunction(()=>document.querySelector('#create-result').textContent.includes('copy verified'));assert.deepEqual(fs.readFileSync(path.join(createModels,'checkpoints','fixture.safetensors')),fs.readFileSync(createSource));await application.evaluate(()=>{global.__createModelsReady=true;});await page.click('#create-check');await page.waitForFunction(()=>document.querySelector('#create-model').value==='fixture.safetensors');
+    await page.click('#create-street');await page.fill('#create-seed','42');await page.click('#create-generate');await page.waitForFunction(()=>{const text=document.querySelector('#create-result').textContent;return text.includes('Generated locally')||text.includes('If already queued');});assert.match(await page.locator('#create-result').textContent(),/Generated locally/);
+    assert.equal(await page.locator('#create-image').isVisible(),true);assert.match(await page.locator('#create-result').textContent(),/seed 42/);
+    const imageExport=path.join(profile,'creative-export.png');await application.evaluate(({dialog},file)=>{global.__createSaveDialog=dialog.showSaveDialog;dialog.showSaveDialog=async()=>({canceled:false,filePath:file});},imageExport);await page.click('#create-export');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('image exported'));assert.equal(fs.readFileSync(imageExport).subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/create.png')});
+    for(const width of [760,1000,1440]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'creative page fits '+width);}
+    await application.evaluate(({app,dialog})=>{app.setPath('appData',global.__createAppData);dialog.showOpenDialog=global.__createOpenDialog;dialog.showSaveDialog=global.__createSaveDialog;global.fetch=global.__beforeCreateFetch;});await page.click('#owner-tab');
+    await page.selectOption('#provider','openai');
+    await page.fill('#api-key','tgg-fake-smoke-key');
+    await page.click('#settings-form button[type=submit]');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('saved using OS encryption'));
+    assert.equal(await page.inputValue('#api-key'),'');
+    const stored=JSON.parse(fs.readFileSync(path.join(profile,'owner.json'),'utf8'));
+    assert.equal(JSON.stringify(stored).includes('tgg-fake-smoke-key'),false);
+    const roundTrip=await application.evaluate(({safeStorage},encrypted)=>
+      JSON.parse(safeStorage.decryptString(Buffer.from(encrypted,'base64'))).apiKey==='tgg-fake-smoke-key',stored.settings);
+    assert.equal(roundTrip,true);
+    await application.evaluate(()=>{global.__tggSmokeFetch=global.fetch;global.fetch=async()=>({ok:true,json:async()=>({choices:[{message:{content:'<script>unsafe()</script> TGG smoke response'}}]})});});
+    await page.click('#chat-tab');await page.fill('#prompt','Smoke test');await page.click('#send');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent==='Response complete.');
+    assert.equal(await page.locator('#messages script').count(),0);
+    assert.match(await page.locator('#messages').textContent(),/<script>unsafe\(\)<\/script> TGG smoke response/);
+    await page.click('#owner-tab');
+    await page.selectOption('#provider','ollama');
+    assert.equal(await page.locator('#api-key').isVisible(),false);
+    await page.click('#settings-form button[type=submit]');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('saved using OS encryption'));
+    await application.evaluate(()=>{global.fetch=async(url,options)=>{if(String(url)==='http://127.0.0.1:11434/api/tags')return {ok:true,json:async()=>({models:[{name:'qwen2.5:0.5b'}]})};if(String(url)!=='http://127.0.0.1:11434/api/chat')return global.__tggSmokeFetch(url,options);if(options.headers.Authorization)throw Error('Local provider boundary failed');if(JSON.parse(options.body).format)return {ok:true,json:async()=>({message:{content:JSON.stringify({edits:[{find:'Edited in the Obsidian workspace',replace:'Reviewed local edit'}]})}})};return {ok:true,json:async()=>({message:{content:'Local model smoke response'}})};};});
+    await page.click('#chat-tab');await page.fill('#prompt','Local smoke test');await page.click('#send');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent==='Response complete.');
+    assert.match(await page.locator('#messages').textContent(),/Local model smoke response/);
+    await page.click('#chat-save');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Conversation saved'));
+    const savedId=await page.inputValue('#saved-chats');assert.ok(savedId);
+    const chatRecord=JSON.parse(fs.readFileSync(path.join(profile,'owner.json'),'utf8'));assert.equal(JSON.stringify(chatRecord).includes('Local smoke test'),false);
+    await page.click('#new-chat');assert.equal(await page.locator('#messages .user').count(),0);
+    await page.selectOption('#saved-chats',savedId);await page.click('#chat-load');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Saved conversation opened'));
+    assert.match(await page.locator('#messages').textContent(),/Local smoke test/);
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/tgg-chat.png')});
+    await page.click('#chat-delete');await page.waitForFunction(()=>document.querySelector('#saved-chats').options.length===1);
+
+    await page.click('#owner-tab');await page.click('#local-models');await page.waitForFunction(()=>document.querySelector('#local-model-picker').options.length>1);await page.selectOption('#local-model-picker','qwen2.5:0.5b');assert.equal(await page.inputValue('#model'),'qwen2.5:0.5b');await page.selectOption('#provider','openai');
+    await page.click('#remote-tab');
+    assert.equal(await page.locator('#remote-panel').isVisible(),true);
+    assert.equal(await page.locator('#owner-panel').isVisible(),false);
+    assert.equal(await page.locator('#project-review').count(),1);
+    assert.equal(await page.locator('#remote-export').isDisabled(),true);
+    assert.equal(await page.locator('#project-save').isDisabled(),true);
+    const projectFolder=path.join(profile,'smoke-project');fs.mkdirSync(projectFolder);fs.writeFileSync(path.join(projectFolder,'notes.md'),'Studio project smoke');fs.writeFileSync(path.join(projectFolder,'.env'),'dummy-secret-for-exclusion');
+    await application.evaluate(({dialog},{folder,profile})=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[folder]});dialog.showSaveDialog=async(_window,options)=>({canceled:false,filePath:profile+'/'+options.defaultPath});},{folder:projectFolder,profile});
+    await page.click('#project-review');
+    await page.waitForFunction(()=>!document.querySelector('#project-save').disabled);
+    assert.match(await page.locator('#project-summary').textContent(),/notes.md/);
+    await page.click('#remote-export');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Support bundle saved'));
+    const support=JSON.parse(fs.readFileSync(path.join(profile,'TGG-Remote-support.json'),'utf8'));assert.equal(support.files[0].content,'Studio project smoke');assert.equal(JSON.stringify(support).includes('dummy-secret-for-exclusion'),false);
+    await page.click('#project-save');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Project text saved in Source repository'));
+    assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Studio project smoke');
+    await page.click('#workspace-tab');await page.click('#workspace-open');
+    await page.waitForSelector('.file-item');await page.locator('.file-item').first().click();
+    await page.waitForFunction(()=>!document.querySelector('#workspace-editor').disabled);
+    assert.equal(await page.inputValue('#workspace-editor'),'Studio project smoke');
+    await page.fill('#workspace-editor','Edited in the Obsidian workspace');await page.click('#workspace-save');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.startsWith('File saved.'));
+    assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Edited in the Obsidian workspace');
+    await page.fill('#workspace-editor','Unsaved snapshot must be blocked');await page.click('#workspace-snapshot');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Save your editor changes'));
+    await page.fill('#workspace-editor','Edited in the Obsidian workspace');await page.click('#workspace-save');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.startsWith('File saved.'));
+    await application.evaluate(({dialog})=>{dialog.showOpenDialog=async()=>{throw Error('Snapshot shortcut must not reopen the folder picker');};});
+    await page.click('#workspace-snapshot');await page.waitForFunction(()=>!document.querySelector('#project-save').disabled);
+    assert.match(await page.locator('#project-summary').textContent(),/notes.md/);
+    await page.click('#project-save');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Project text saved in Source repository'));
+    await page.click('#workspace-tab');
+    await page.fill('#workspace-ai-prompt','Explain this note');await page.check('#workspace-context');await page.click('#workspace-ai-send');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.startsWith('Studio companion response complete'));
+    assert.match(await page.locator('#workspace-ai-messages').textContent(),/Local model smoke response/);
+    await page.fill('#workspace-ai-prompt','Improve this note');await page.click('#workspace-propose');await page.waitForSelector('#proposal-dialog[open]');
+    assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Edited in the Obsidian workspace');
+    await page.click('#proposal-reject');assert.equal(await page.inputValue('#workspace-editor'),'Edited in the Obsidian workspace');
+    await page.click('#workspace-propose');await page.waitForSelector('#proposal-dialog[open]');await page.click('#proposal-apply');
+    assert.equal(await page.inputValue('#workspace-editor'),'Reviewed local edit');assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Edited in the Obsidian workspace');
+    await page.click('#workspace-save');await page.waitForFunction(()=>document.querySelector('#notice').textContent.startsWith('File saved.'));
+    assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Reviewed local edit');
+    await page.click('#owner-tab');assert.match(await page.inputValue('#os-path'),/TGG_EVERYTHING_OS_v1.7.4.exe$/);
+    await page.fill('#os-path','https://example.com/bad.exe');await page.click('#os-form button');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Windows')||document.querySelector('#notice').textContent.includes('local Windows'));
+    await page.click('#dashboard-tab');await page.waitForSelector('.dashboard-project');
+    assert.match(await page.locator('#dashboard-projects').textContent(),/notes.md/);
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/dashboard.png')});
+    assert.equal(await page.locator('#dashboard-panel [data-service=os]').count(),1);
+    await page.click('#home-remote');await page.waitForSelector('#project-review:visible');await page.click('#dashboard-tab');await page.waitForSelector('.recent-file');
+    await page.locator('.recent-file').first().click();
+    await page.waitForFunction(()=>!document.querySelector('#workspace-panel').hidden&&document.querySelector('#workspace-editor').value==='Reviewed local edit');
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/workspace.png')});
+    fs.writeFileSync(path.join(projectFolder,'notes.md'),'Changed by another editor');
+    await page.fill('#workspace-editor','Do not overwrite external edits');await page.click('#workspace-save');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('changed in another app'));
+    assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Changed by another editor');
+    await page.locator('.file-item').first().click();await page.click('#discard-confirm');
+    await page.waitForFunction(()=>document.querySelector('#workspace-editor').value==='Changed by another editor');
+    console.log('Smoke: existing editor workflow passed; starting combined agent/recovery checks.');
+    // Combined local agent, approved real npm check, edit recovery, and owner backup.
+    fs.writeFileSync(path.join(projectFolder,'package.json'),JSON.stringify({scripts:{test:'node check.js',build:'node -e "setInterval(()=>{},1000)"'}}));
+    fs.writeFileSync(path.join(projectFolder,'check.js'),"// Fixture check\nconsole.log('TGG_CHECK_PASSED');\n");
+    await application.evaluate(({dialog},folder)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[folder]});},projectFolder);
+    await page.click('#workspace-tab');await page.click('#workspace-open');await page.waitForSelector('.file-item');
+    await application.evaluate(()=>{global.__beforeAgentFetch=global.fetch;global.__agentQueue=[{tool:'list_files',path:'',edits:[],message:''},{tool:'list_files'},{tool:'read_file',path:'notes.md'},{tool:'propose_edit',path:'notes.md',edits:[{find:'Changed by another editor',replace:'Reviewed by TGG Agent'}]},{tool:'read_file',path:'check.js'},{tool:'propose_edit',path:'check.js',edits:[{find:'// Fixture check',replace:'// Reviewed fixture check'}]},{tool:'request_check',check:'test'},{tool:'finish',message:'Two changes queued. Tests have not run.'}];global.fetch=async(url,options)=>{if(JSON.parse(options?.body||'{}').format?.properties?.tool)return {ok:true,json:async()=>({message:{content:JSON.stringify(global.__agentQueue.shift())}})};return global.__beforeAgentFetch(url,options);};});
+    await page.click('#agent-tab');await page.fill('#agent-task','Review and improve the project notes and check comment.');await page.click('#agent-start');
+    await page.waitForFunction(()=>document.querySelector('#agent-summary').textContent.includes('Two changes queued'));
+    assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Changed by another editor');
+    assert.equal(await page.locator('#agent-proposals .primary-button').count(),2);
+    while(await page.locator('#agent-proposals .primary-button').count()){const remaining=await page.locator('#agent-proposals .primary-button').count();await page.locator('#agent-proposals .primary-button').first().click();await page.waitForFunction(count=>document.querySelectorAll('#agent-proposals .primary-button').length<count,remaining);}
+    assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Reviewed by TGG Agent');
+    console.log('Smoke: multi-file proposals applied.');
+    await page.click('#agent-test');await page.waitForSelector('#check-dialog[open]');assert.match(await page.locator('#check-plan').textContent(),/node check.js/);await page.click('#check-confirm');await page.waitForFunction(()=>document.querySelector('#notice').textContent==='Project check passed.');assert.match(await page.locator('#check-output').textContent(),/TGG_CHECK_PASSED/);
+    console.log('Smoke: approved npm test passed.');
+    await page.click('#agent-build');await page.click('#check-confirm');await page.waitForFunction(()=>document.querySelector('#check-output').textContent.includes('setInterval'));await page.click('#stop-work');await page.waitForFunction(()=>document.querySelector('#check-output').textContent.includes('Stopped'));
+    await application.evaluate(()=>{global.fetch=async(url,options)=>{if(JSON.parse(options?.body||'{}').format?.properties?.tool)return new Promise((_resolve,reject)=>options.signal.addEventListener('abort',()=>reject(Error('Aborted')),{once:true}));return global.__beforeAgentFetch(url,options);};});
+    await page.fill('#agent-task','Slow cancellation fixture');await page.click('#agent-start');await page.waitForFunction(()=>document.querySelector('#agent-start').disabled);await page.click('#stop-work');await page.waitForFunction(()=>!document.querySelector('#agent-start').disabled);assert.equal(await page.locator('#agent-proposals .primary-button').count(),0);
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/agent.png')});
+    console.log('Smoke: check and agent Stop passed.');
+    await page.click('#recovery-tab');await page.click('#edits-refresh');await page.waitForFunction(()=>document.querySelector('#recovery-edits').options.length>1);
+    const undoId=await page.locator('#recovery-edits').evaluate(select=>[...select.options].find(option=>option.textContent.includes('notes.md')).value);await page.selectOption('#recovery-edits',undoId);await page.click('#recovery-undo');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Before-copy restored'));assert.equal(fs.readFileSync(path.join(projectFolder,'notes.md'),'utf8'),'Changed by another editor');
+    console.log('Smoke: journal undo passed.');
+    await page.click('#recovery-export');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Encrypted owner backup saved'));const ownerBackup=path.join(profile,'TGG-owner-backup.json');assert.equal(JSON.parse(fs.readFileSync(ownerBackup,'utf8')).format,'tgg-owner-backup-v1');
+    await application.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},ownerBackup);
+    await page.fill('#recovery-password','tgg smoke owner password');await page.click('#recovery-form button');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Owner backup restored'));
+    await page.click('#owner-tab');await page.fill('#password','tgg smoke owner password');await page.click('#unlock-form button[type=submit]');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('unlocked'));
+    console.log('Smoke: owner backup export/restore passed.');
+    const bundleRepo=path.join(profile,'bundle-fixture');fs.mkdirSync(bundleRepo);const bundledGit=process.platform==='win32'?path.join(process.env.TGG_TEST_EXE?path.dirname(process.env.TGG_TEST_EXE):path.resolve(__dirname,'..'),'resources','mingit','cmd','git.exe'):'git';const git=process.platform==='win32'&&!process.env.TGG_TEST_EXE?path.resolve(__dirname,'../vendor/mingit/cmd/git.exe'):bundledGit;const gitRun=args=>require('node:child_process').execFileSync(git,args,{cwd:bundleRepo,windowsHide:true,stdio:'pipe'});
+    gitRun(['init','--initial-branch=main']);gitRun(['config','user.name','TGG Smoke']);gitRun(['config','user.email','smoke@tgg.local']);fs.writeFileSync(path.join(bundleRepo,'README.md'),'Bundle restore fixture');gitRun(['add','README.md']);gitRun(['commit','-m','Recovery fixture']);const bundleFile=path.join(profile,'fixture.bundle');gitRun(['bundle','create',bundleFile,'--all']);
+    await application.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},bundleFile);await page.click('#recovery-tab');await page.click('#bundle-review');await page.waitForFunction(()=>!document.querySelector('#bundle-restore').disabled);assert.match(await page.locator('#bundle-result').textContent(),/refs\/heads\/main/);await page.click('#bundle-restore');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Bundle restored as new Source repository'));
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/recovery.png')});
+    await page.click('#remote-tab');
+    await page.click('#remote-diagnostics');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Local connection checks complete'));
+    const diagnostic=JSON.parse(await page.locator('#remote-diagnostics-result').textContent());assert.equal(diagnostic.source.connected,true);assert.equal(diagnostic.ollama.connected,true);
+    await page.click('#remote-screenshot');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('App screenshot saved locally'));
+    assert.ok(fs.statSync(path.join(profile,'TGG-Remote-app.png')).size>0);
+    await page.click('#owner-tab');await page.click('#lock');
+    await page.selectOption('#provider','openai');await page.fill('#api-key','tgg-fake-other-key');await page.click('#settings-form button[type=submit]');
+    await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Unlock owner settings first'));
+    // A signed packaged app can contact its real feed; test the disabled update path only in development.
+    if(!process.env.TGG_TEST_EXE){await page.click('#update');await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('quiet updater'));}
+    fs.mkdirSync(path.resolve(__dirname,'../test-results'),{recursive:true});
+    await page.click('#chat-tab');await page.click('#new-chat');
+    assert.equal(await page.locator('#messages .user').count(),0);
+    assert.equal(await page.locator('#messages .welcome').count(),1);
+    await page.locator('[data-prompt]').first().click();assert.match(await page.inputValue('#prompt'),/plan a small app/);
+    await page.click('#new-chat');assert.equal(await page.inputValue('#prompt'),'');
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/desktop.png')});
+    await page.click('#owner-tab');await page.screenshot({path:path.resolve(__dirname,'../test-results/owner.png')});
+    await page.click('#remote-tab');await page.screenshot({path:path.resolve(__dirname,'../test-results/remote.png')});
+    await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setBounds({width:760,height:700}));
+    await page.click('#chat-tab');await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await page.evaluate(()=>document.body.scrollWidth<=innerWidth+1),true);
+    assert.equal(await page.locator('#send').isVisible(),true);
+    await page.screenshot({path:path.resolve(__dirname,'../test-results/desktop-compact.png')});
+
+    await application.evaluate(({session})=>{session.fromPartition('persist:tgg-browser').protocol.handle('https',()=>new Response('<!doctype html><title>Browser fixture</title><h1>TGG test website</h1>',{headers:{'content-type':'text/html'}}));});
+    const browserOpened=application.waitForEvent('window');await page.locator('.sidebar [data-service=browser]').click();const browser=await browserOpened;
+    await browser.waitForSelector('#address');await browser.fill('#address','https://example.com/');await browser.click('button[type=submit]');
+    await browser.waitForFunction(()=>document.querySelector('#state').textContent.includes('Website loaded'));
+    const browserIsolation=await application.evaluate(({BrowserWindow})=>{const window=BrowserWindow.getAllWindows().find(item=>item.getTitle()==='TGG Browser');const contents=window.contentView.children[0].webContents;return contents.executeJavaScript('({node:typeof require,tools:typeof window.tgg,title:document.title})');});
+    assert.deepEqual(browserIsolation,{node:'undefined',tools:'undefined',title:'Browser fixture'});
+    await browser.fill('#address','file:///etc/passwd');await browser.click('button[type=submit]');await browser.waitForFunction(()=>document.querySelector('#state').textContent.includes('HTTPS'));
+    await browser.screenshot({path:path.resolve(__dirname,'../test-results/browser.png')});await browser.close();
+    if(process.env.TGG_SMOKE_HIDDEN==='1')assert.equal(await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().every(window=>!window.isVisible())),true);
+    assert.deepEqual(errors,[]);
+    await application.close();application=null;fs.writeFileSync(path.join(profile,'owner.json'),'{truncated');application=await electron.launch(launchOptions);const restarted=await application.firstWindow();await restarted.waitForFunction(()=>document.querySelector('#notice').textContent.includes('previous valid copy'));assert.equal((await restarted.evaluate(()=>window.tgg.status())).data.recoveryBlocked,false);
+    console.log(JSON.stringify({ok:true,checks:['real GUI','native checkpoint picker and verified copy','disabled Generate without checkpoint','automatic model refresh','TGG Create connection discovery and owned workflow (mocked inference)','native PNG decode, preview and export','creative responsive layout','sandbox enabled','owner setup','OS encryption round trip','mocked chat rendered as text','owner lock','managed Source startup and repository creation','project review and real Source snapshot','support export','local diagnostics','app screenshot','Studio workspace edit/save','external-edit rejection','Studio companion with opt-in context','local model picker','review/reject/apply local edit proposal','separate explicit save of AI proposal','local agent multi-file reviewed edits','approved npm check','Stop cancels check and generation','edit recovery','encrypted owner export/restore','Git bundle verification and new repository restore','corrupt owner data restart recovery'],backend:secure.backend}));
+  } catch(error){console.error('GUI smoke failed:',error);if(application)await application.evaluate(({BrowserWindow})=>{for(const window of BrowserWindow.getAllWindows())window.destroy();}).catch(()=>{});throw error;} finally {
+    if(application) await application.close();
+    fs.rmSync(profile,{recursive:true,force:true,maxRetries:10,retryDelay:200});
+  }
+})().catch(error=>{console.error(error);process.exitCode=1;});

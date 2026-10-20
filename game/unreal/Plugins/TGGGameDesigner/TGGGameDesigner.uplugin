@@ -1,0 +1,32 @@
+{
+  "FileVersion": 3,
+  "Version": 4,
+  "VersionName": "0.3.0",
+  "FriendlyName": "TGG Game Designer",
+  "Description": "Standalone delivery, interactive business menu and persistent in-game daily income prototype.",
+  "Category": "TGG",
+  "CreatedBy": "TGG",
+  "CanContainContent": true,
+  "EnabledByDefault": true,
+  "Modules": [
+    {
+      "Name": "TGGGameDesigner",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "TGGGameDesignerEditor",
+      "Type": "Editor",
+      "LoadingPhase": "PostEngineInit"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "PythonScriptPlugin",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    }
+  ]
+}
